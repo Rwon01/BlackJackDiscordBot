@@ -149,6 +149,69 @@ async def move_to_next_hand(ctx, user_id, interaction):
     else:
         await dealer_play(ctx, user_id, interaction)
 
+async def split(ctx):
+    user_id = ctx.author.id
+    game = active_games.get(user_id)
+
+    if not game:
+        await ctx.respond("No active game found.")
+        return
+
+    current_hand = game['current_hand']
+    hand = game['player_hand'][current_hand]
+
+    if not can_split(hand):
+        await ctx.respond("You can't split this hand!")
+        return
+
+    bet_amount = game['bet']
+    user_data = balances.find_one({"_id": user_id}) or {"balance": 0}
+
+    if user_data["balance"] < bet_amount:
+        await ctx.respond("Not enough balance to split!")
+        return
+
+    # Deduct extra bet amount
+    balances.update_one({"_id": user_id}, {"$inc": {"balance": -bet_amount}})
+
+    # Create two hands
+    new_hand1 = [hand[0], deal_card()]
+    new_hand2 = [hand[1], deal_card()]
+
+    # Replace current hand and add new one
+    game['player_hand'][current_hand] = new_hand1
+    game['player_hand'].append(new_hand2)
+
+    await update_game_message(ctx, user_id, ctx.interaction)
+
+
+async def double_down(ctx):
+    user_id = ctx.author.id
+    game = active_games.get(user_id)
+
+    if not game:
+        await ctx.respond("No active game found.")
+        return
+
+    if game['current_hand'] >= len(game['player_hand']):
+        await ctx.respond("Invalid hand.")
+        return
+
+    bet_amount = game['bet']
+    user_data = balances.find_one({"_id": user_id}) or {"balance": 0}
+
+    if user_data["balance"] < bet_amount:
+        await ctx.respond("Not enough balance to double down!")
+        return
+
+    # Deduct extra bet amount
+    balances.update_one({"_id": user_id}, {"$inc": {"balance": -bet_amount}})
+
+    # Add one card and move to next hand
+    game['player_hand'][game['current_hand']].append(deal_card())
+    await move_to_next_hand(ctx, user_id, ctx.interaction)
+
+
 async def dealer_play(ctx, user_id, interaction):
     game = active_games[user_id]
     dealer_hand = game['dealer_hand']
