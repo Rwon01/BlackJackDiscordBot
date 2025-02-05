@@ -4,9 +4,15 @@ import random
 from dotenv import load_dotenv
 import discord
 from discord.ext import commands
+from pymongo import MongoClient
 from discord.ui import Button, View
 
 load_dotenv()
+# Connect to MongoDB
+MONGO_URI = os.getenv("MONGO_URI")
+client = MongoClient(MONGO_URI)
+db = client["blackjack_db"]
+balances = db["balances"]
 TOKEN: Final[str] = os.getenv('DISCORD_TOKEN')
 server = [1016060727053783040]
 bot = discord.Bot()
@@ -43,17 +49,20 @@ def can_split(hand):
 @bot.slash_command(guild_ids=server, name='play', description='Start a Blackjack game')
 async def play(ctx, bet_amount: discord.Option(int)):
     user_id = ctx.author.id
-    bal = user_database.get(user_id, 0)
+    user_data = balances.find_one({"_id": user_id}) or {"balance": 0}
+    bal = user_data["balance"]
+    
     if bal < bet_amount:
         await ctx.respond("Insufficient balance.")
         return
 
-    user_database[user_id] -= bet_amount
+    balances.update_one({"_id": user_id}, {"$inc": {"balance": -bet_amount}}, upsert=True)
     player_hand = [deal_card(), deal_card()]
     dealer_hand = [deal_card(), deal_card()]
 
     if is_blackjack(player_hand):
-        user_database[user_id] += int(bet_amount * 2.5)
+        winnings = int(bet_amount * 2.5)
+        balances.update_one({"_id": user_id}, {"$inc": {"balance": winnings}})
         embed = discord.Embed(title="Blackjack!", description=f"You win 1.5x your bet!\nYour hand: {format_hand(player_hand)}", color=discord.Color.green())
         await ctx.respond(embed=embed)
         return
@@ -63,13 +72,12 @@ async def play(ctx, bet_amount: discord.Option(int)):
     await update_game_message(ctx, user_id)
 
 async def update_game_message(ctx, user_id, interaction=None):
-    """Updates the game message with the current state of the hands."""
     game = active_games[user_id]
     player_hands = game['player_hand']
     dealer_hand = game['dealer_hand']
     bet = game['bet']
     current_hand = game['current_hand']
-
+    
     embed = discord.Embed(
         title="Blackjack Game",
         description=f"Hand {current_hand + 1}/{len(player_hands)}\n"
@@ -77,9 +85,17 @@ async def update_game_message(ctx, user_id, interaction=None):
                     f"Dealer's visible card: {format_hand([dealer_hand[0]])}",
         color=discord.Color.blue()
     )
-
+    
+    if is_blackjack(player_hands[current_hand]):
+        embed.color = discord.Color.green()
+        embed.description += f"\nBlackjack for Hand {current_hand + 1}! ✅"
+        winnings = int(bet * 2.5)
+        balances.update_one({"_id": user_id}, {"$inc": {"balance": winnings}})
+        await move_to_next_hand(ctx, user_id, interaction)
+        return
+    
     view = View()
-
+    
     # HIT Button
     hit_button = Button(label="Hit", style=discord.ButtonStyle.green)
     async def hit_callback(interaction: discord.Interaction):
@@ -94,10 +110,10 @@ async def update_game_message(ctx, user_id, interaction=None):
             await move_to_next_hand(ctx, user_id, interaction)
         else:
             await update_game_message(ctx, user_id, interaction)
-
+    
     hit_button.callback = hit_callback
     view.add_item(hit_button)
-
+    
     # STAND Button
     stand_button = Button(label="Stand", style=discord.ButtonStyle.red)
     async def stand_callback(interaction: discord.Interaction):
@@ -105,45 +121,47 @@ async def update_game_message(ctx, user_id, interaction=None):
             await interaction.response.send_message("This is not your game!", ephemeral=True)
             return
         await move_to_next_hand(ctx, user_id, interaction)
-
+    
     stand_button.callback = stand_callback
     view.add_item(stand_button)
-
+    
     # DOUBLE DOWN Button (Only if two cards in the current hand)
     double_down_button = Button(label="Double Down", style=discord.ButtonStyle.blurple, disabled=len(game['player_hand'][current_hand]) != 2)
     async def double_down_callback(interaction: discord.Interaction):
         if interaction.user.id != user_id:
             await interaction.response.send_message("This is not your game!", ephemeral=True)
             return
-        if user_database[user_id] < bet:
+        user_data = balances.find_one({"_id": user_id}) or {"balance": 0}
+        if user_data["balance"] < bet:
             await interaction.response.send_message("Insufficient balance for double down.", ephemeral=True)
             return
-        user_database[user_id] -= bet
+        balances.update_one({"_id": user_id}, {"$inc": {"balance": -bet}})
         game['bet'] *= 2
         game['player_hand'][current_hand].append(deal_card())
         await move_to_next_hand(ctx, user_id, interaction)
-
+    
     double_down_button.callback = double_down_callback
     view.add_item(double_down_button)
-
+    
     # SPLIT Button (Only if the two cards are the same)
     split_button = Button(label="Split", style=discord.ButtonStyle.gray, disabled=not can_split(game['player_hand'][0]))
     async def split_callback(interaction: discord.Interaction):
         if interaction.user.id != user_id:
             await interaction.response.send_message("This is not your game!", ephemeral=True)
             return
-        if user_database[user_id] < bet:
+        user_data = balances.find_one({"_id": user_id}) or {"balance": 0}
+        if user_data["balance"] < bet:
             await interaction.response.send_message("Insufficient balance for splitting.", ephemeral=True)
             return
-        user_database[user_id] -= bet
+        balances.update_one({"_id": user_id}, {"$inc": {"balance": -bet}})
         first_card = game['player_hand'][0][0]
         second_card = game['player_hand'][0][1]
         game['player_hand'] = [[first_card, deal_card()], [second_card, deal_card()]]
         await update_game_message(ctx, user_id, interaction)
-
+    
     split_button.callback = split_callback
     view.add_item(split_button)
-
+    
     if interaction:
         await interaction.response.edit_message(embed=embed, view=view)
     else:
@@ -210,3 +228,7 @@ async def on_ready():
 
 if __name__ == "__main__":
     bot.run(TOKEN)
+
+
+
+    
