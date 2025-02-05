@@ -152,6 +152,14 @@ async def play(ctx, bet_amount: discord.Option(int)):
     active_games[user_id]['message'] = message
 
 
+@bot.slash_command(guild_ids=server, name='deposit', description='Admins can deposit money to a user')
+@commands.has_permissions(administrator=True)
+async def deposit(ctx, user: discord.Member, deposit_amount: discord.Option(int)):
+    user_id = user.id
+    user_database[user_id] = user_database.get(user_id, 0) + deposit_amount
+    await ctx.respond(f"New balance: ${user_database[user_id]}")
+    await ctx.respond(f"{user.mention} has been credited with ${deposit_amount}. New balance: ${user_database[user_id]}")
+
 @bot.event
 async def on_ready():
     print(f"{bot.user} is now online!")
