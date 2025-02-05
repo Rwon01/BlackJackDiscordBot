@@ -89,3 +89,11 @@ async def play(ctx, bet_amount: discord.Option(int)):
     
     message = await ctx.respond(embed=embed, view=view)
     active_games[user_id]['message'] = message
+
+
+@bot.event
+async def on_ready():
+    print(f"{bot.user} is now online!")
+
+if __name__ == "__main__":
+    bot.run(TOKEN)
