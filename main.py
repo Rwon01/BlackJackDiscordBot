@@ -183,8 +183,12 @@ async def double_down(ctx):
         await ctx.respond("No active game found.")
         return
 
-    if game['current_hand'] >= len(game['player_hand']):
-        await ctx.respond("Invalid hand.")
+    current_hand = game['current_hand']
+    hand = game['player_hand'][current_hand]
+
+    # Ensure that the player can only double down if they have exactly 2 cards
+    if len(hand) != 2:
+        await ctx.respond("You can only double down with exactly 2 cards.")
         return
 
     bet_amount = game['bet']
@@ -194,13 +198,14 @@ async def double_down(ctx):
         await ctx.respond("Not enough balance to double down!")
         return
 
-    # Deduct extra bet amount
+    # Deduct extra bet amount (to double the bet)
     balances.update_one({"_id": user_id}, {"$inc": {"balance": -bet_amount}})
 
-    # Add one card and move to next hand
-    game['player_hand'][game['current_hand']].append(deal_card())
-    await move_to_next_hand(ctx, user_id, ctx.interaction)
+    # Add one card and update the hand
+    hand.append(deal_card())
 
+    # After doubling down, automatically move to the next hand
+    await move_to_next_hand(ctx, user_id, ctx.interaction)
 
 async def split(ctx):
     user_id = ctx.author.id
