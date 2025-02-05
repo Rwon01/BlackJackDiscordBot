@@ -152,6 +152,9 @@ async def dealer_play(ctx, user_id, interaction):
     game = active_games[user_id]
     dealer_hand = game['dealer_hand']
 
+    # Defer the interaction to prevent InteractionResponded error
+    await interaction.response.defer()
+
     while calculate_score(dealer_hand) < 17:
         dealer_hand.append(deal_card())
 
@@ -172,7 +175,9 @@ async def dealer_play(ctx, user_id, interaction):
             results.append(f"Hand {i+1}: **Push (Tie)** 🤝")
 
     embed.description = f"Dealer's hand: {format_hand(dealer_hand)} (Score: {dealer_score})\n\n" + "\n".join(results)
-    await interaction.response.edit_message(embed=embed, view=View())
+    
+    # Edit the original message with the final game result
+    await interaction.edit_original_message(embed=embed, view=View())
     del active_games[user_id]
 
 async def double_down(ctx):
