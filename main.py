@@ -252,6 +252,17 @@ async def split(ctx):
 
     await update_game_message(ctx, user_id, ctx.interaction)
 
+#######################################################################
+
+
+vouchers = db["vouchers"]
+@bot.slash_command(guild_ids=server, name='redeem', description='Redeem a money voucher')
+async def redeem(ctx, code: discord.Option(str)):
+    user_data = vouchers.find_one({"text": code})
+    if user_data:
+        value = user_data[value]
+        print(value)
+
 
 @bot.event
 async def on_ready():
