@@ -86,6 +86,64 @@ async def balance(ctx):
     user_data = balances.find_one({"_id": user_id}) or {"balance": 0}
     await ctx.respond(f"Balance: ${user_data['balance']}")
 
+@bot.slash_command(guild_ids=server, name='double_down', description="Double your bet and receive one final card")
+async def double_down(ctx):
+    user_id = ctx.author.id
+    if user_id not in active_games:
+        await ctx.respond("You're not in an active game!", ephemeral=True)
+        return
+
+    game = active_games[user_id]
+    current_hand = game['current_hand']
+    bet = game['bet']
+
+    user_data = balances.find_one({"_id": user_id}) or {"balance": 0}
+    bal = user_data["balance"]
+
+    if bal < bet:
+        await ctx.respond("Insufficient balance to double down.", ephemeral=True)
+        return
+
+    balances.update_one({"_id": user_id}, {"$inc": {"balance": -bet}})
+    game['bet'] *= 2  
+    game['player_hand'][current_hand].append(deal_card())
+
+    await move_to_next_hand(ctx, user_id, None)
+
+@bot.slash_command(guild_ids=server, name='split', description="Split your hand if you have two matching cards")
+async def split(ctx):
+    user_id = ctx.author.id
+    if user_id not in active_games:
+        await ctx.respond("You're not in an active game!", ephemeral=True)
+        return
+
+    game = active_games[user_id]
+    current_hand = game['current_hand']
+    hand = game['player_hand'][current_hand]
+
+    if not can_split(hand):
+        await ctx.respond("You can only split if you have two matching cards.", ephemeral=True)
+        return
+
+    user_data = balances.find_one({"_id": user_id}) or {"balance": 0}
+    bal = user_data["balance"]
+    bet = game['bet']
+
+    if bal < bet:
+        await ctx.respond("Insufficient balance to split.", ephemeral=True)
+        return
+
+    balances.update_one({"_id": user_id}, {"$inc": {"balance": -bet}})
+    
+    new_hand1 = [hand[0], deal_card()]
+    new_hand2 = [hand[1], deal_card()]
+    
+    game['player_hand'][current_hand] = new_hand1
+    game['player_hand'].append(new_hand2)
+
+    await update_game_message(ctx, user_id)
+
+
 async def update_game_message(ctx, user_id, interaction=None):
     game = active_games[user_id]
     player_hands = game['player_hand']
