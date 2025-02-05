@@ -9,7 +9,7 @@ TOKEN: Final[str] = os.getenv('DISCORD_TOKEN')
 server = [1016060727053783040]
 bot = discord.Bot()
 
-suits = ['Hearts', 'Diamonds', 'Clubs', 'Spades']
+suits = {'Hearts': '♥️', 'Diamonds': '♦️', 'Clubs': '♣️', 'Spades': '♠️'}
 ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
 values = {rank: min(i + 2, 10) if rank not in ['J', 'Q', 'K', 'A'] else (11 if rank == 'A' else 10) for i, rank in enumerate(ranks)}
 
@@ -17,7 +17,12 @@ user_database = {}  # Stores user balances
 active_games = {}  # Stores ongoing games
 
 def deal_card():
-    return random.choice(ranks), random.choice(suits)
+    rank = random.choice(ranks)
+    suit = random.choice(list(suits.keys()))
+    return rank, suits[suit]
+
+def format_hand(hand):
+    return ' '.join([f"{card[0]}{card[1]}" for card in hand])
 
 def calculate_score(hand):
     score = sum(values[card[0]] for card in hand)
@@ -41,7 +46,7 @@ async def play(ctx, bet_amount: discord.Option(int)):
     
     active_games[user_id] = {'player_hand': player_hand, 'dealer_hand': dealer_hand, 'bet': bet_amount}
     
-    await ctx.respond(f"Your hand: {player_hand} (Score: {calculate_score(player_hand)})\nDealer's visible card: {dealer_hand[0]}")
+    await ctx.respond(f"Your hand: {format_hand(player_hand)} (Score: {calculate_score(player_hand)})\nDealer's visible card: {format_hand([dealer_hand[0]])}")
 
 @bot.slash_command(guild_ids=server, name='hit', description='Draw another card')
 async def hit(ctx):
@@ -56,9 +61,9 @@ async def hit(ctx):
     
     if score > 21:
         del active_games[user_id]
-        await ctx.respond(f"Bust! You lost. Your hand: {game['player_hand']} (Score: {score})")
+        await ctx.respond(f"Bust! You lost. Your hand: {format_hand(game['player_hand'])} (Score: {score})")
     else:
-        await ctx.respond(f"Your hand: {game['player_hand']} (Score: {score})")
+        await ctx.respond(f"Your hand: {format_hand(game['player_hand'])} (Score: {score})")
 
 @bot.slash_command(guild_ids=server, name='stand', description='End your turn')
 async def stand(ctx):
@@ -84,7 +89,7 @@ async def stand(ctx):
         user_database[user_id] += game['bet']
         result = "It's a tie!"
     
-    await ctx.respond(f"{result}\nYour hand: {game['player_hand']} (Score: {player_score})\nDealer's hand: {game['dealer_hand']} (Score: {dealer_score})")
+    await ctx.respond(f"{result}\nYour hand: {format_hand(game['player_hand'])} (Score: {player_score})\nDealer's hand: {format_hand(game['dealer_hand'])} (Score: {dealer_score})")
 
 @bot.slash_command(guild_ids=server, name='deposit', description='Deposit money')
 async def deposit(ctx, deposit_amount: discord.Option(int)):
