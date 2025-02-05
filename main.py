@@ -134,7 +134,8 @@ async def update_game_message(ctx, user_id, interaction=None):
     split_button.callback = split_callback
     view.add_item(split_button)
 
-    if interaction:
+    # If interaction is not None and hasn't been responded to yet
+    if interaction and not interaction.response.is_done():
         await interaction.response.edit_message(embed=embed, view=view)
     else:
         await ctx.respond(embed=embed, view=view)
