@@ -3,6 +3,7 @@ import os
 import random
 from dotenv import load_dotenv
 import discord
+from discord.ext import commands
 
 load_dotenv()
 TOKEN: Final[str] = os.getenv('DISCORD_TOKEN')
@@ -91,11 +92,12 @@ async def stand(ctx):
     
     await ctx.respond(f"{result}\nYour hand: {format_hand(game['player_hand'])} (Score: {player_score})\nDealer's hand: {format_hand(game['dealer_hand'])} (Score: {dealer_score})")
 
-@bot.slash_command(guild_ids=server, name='deposit', description='Deposit money')
-async def deposit(ctx, deposit_amount: discord.Option(int)):
-    user_id = ctx.author.id
+@bot.slash_command(guild_ids=server, name='deposit', description='Admins can deposit money to a user')
+@commands.has_permissions(administrator=True)
+async def deposit(ctx, user: discord.Member, deposit_amount: discord.Option(int)):
+    user_id = user.id
     user_database[user_id] = user_database.get(user_id, 0) + deposit_amount
-    await ctx.respond(f"New balance: ${user_database[user_id]}")
+    await ctx.respond(f"{user.mention} has been credited with ${deposit_amount}. New balance: ${user_database[user_id]}")
 
 @bot.slash_command(guild_ids=server, name='balance', description='Check your balance')
 async def balance(ctx):
