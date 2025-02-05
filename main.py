@@ -169,6 +169,31 @@ async def update_game_message(ctx, user_id, interaction=None):
     
     view = View()
     
+
+        # DOUBLE DOWN Button
+    double_down_button = Button(label="Double Down", style=discord.ButtonStyle.blurple)
+    async def double_down_callback(interaction: discord.Interaction):
+        if interaction.user.id != user_id:
+            await interaction.response.send_message("This is not your game!", ephemeral=True)
+            return
+        await double_down(ctx)
+
+    double_down_button.callback = double_down_callback
+    view.add_item(double_down_button)
+
+    # SPLIT Button
+    split_button = Button(label="Split", style=discord.ButtonStyle.gray)
+    async def split_callback(interaction: discord.Interaction):
+        if interaction.user.id != user_id:
+            await interaction.response.send_message("This is not your game!", ephemeral=True)
+            return
+        await split(ctx)
+
+    split_button.callback = split_callback
+    view.add_item(split_button)
+
+
+
     # HIT Button
     hit_button = Button(label="Hit", style=discord.ButtonStyle.green)
     async def hit_callback(interaction: discord.Interaction):
