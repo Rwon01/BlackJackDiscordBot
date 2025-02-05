@@ -4,6 +4,7 @@ import random
 from dotenv import load_dotenv
 import discord
 from discord.ext import commands
+from discord.ui import Button, View
 
 load_dotenv()
 TOKEN: Final[str] = os.getenv('DISCORD_TOKEN')
@@ -33,6 +34,12 @@ def calculate_score(hand):
         aces -= 1
     return score
 
+def is_blackjack(hand):
+    return len(hand) == 2 and any(card[0] == 'A' for card in hand) and any(card[0] in ['10', 'J', 'Q', 'K'] for card in hand)
+
+def can_split(hand):
+    return len(hand) == 2 and hand[0][0] == hand[1][0]
+
 @bot.slash_command(guild_ids=server, name='play', description='Start a Blackjack game')
 async def play(ctx, bet_amount: discord.Option(int)):
     user_id = ctx.author.id
@@ -45,71 +52,40 @@ async def play(ctx, bet_amount: discord.Option(int)):
     player_hand = [deal_card(), deal_card()]
     dealer_hand = [deal_card(), deal_card()]
     
-    active_games[user_id] = {'player_hand': player_hand, 'dealer_hand': dealer_hand, 'bet': bet_amount}
-    
-    await ctx.respond(f"Your hand: {format_hand(player_hand)} (Score: {calculate_score(player_hand)})\nDealer's visible card: {format_hand([dealer_hand[0]])}")
-
-@bot.slash_command(guild_ids=server, name='hit', description='Draw another card')
-async def hit(ctx):
-    user_id = ctx.author.id
-    if user_id not in active_games:
-        await ctx.respond("No active game. Use /play to start.")
+    if is_blackjack(player_hand):
+        user_database[user_id] += int(bet_amount * 2.5)
+        embed = discord.Embed(title="Blackjack!", description=f"You win 1.5x your bet!\nYour hand: {format_hand(player_hand)}", color=discord.Color.green())
+        await ctx.respond(embed=embed)
         return
     
-    game = active_games[user_id]
-    game['player_hand'].append(deal_card())
-    score = calculate_score(game['player_hand'])
+    active_games[user_id] = {'player_hand': [player_hand], 'dealer_hand': dealer_hand, 'bet': bet_amount}
     
-    if score > 21:
-        del active_games[user_id]
-        await ctx.respond(f"Bust! You lost. Your hand: {format_hand(game['player_hand'])} (Score: {score})")
-    else:
-        await ctx.respond(f"Your hand: {format_hand(game['player_hand'])} (Score: {score})")
-
-@bot.slash_command(guild_ids=server, name='stand', description='End your turn')
-async def stand(ctx):
-    user_id = ctx.author.id
-    if user_id not in active_games:
-        await ctx.respond("No active game. Use /play to start.")
-        return
+    embed = discord.Embed(title="Blackjack Game", description=f"Your hand: {format_hand(player_hand)} (Score: {calculate_score(player_hand)})\nDealer's visible card: {format_hand([dealer_hand[0]])}", color=discord.Color.blue())
     
-    game = active_games.pop(user_id)
-    player_score = calculate_score(game['player_hand'])
-    dealer_score = calculate_score(game['dealer_hand'])
+    view = View()
+    hit_button = Button(label="Hit", style=discord.ButtonStyle.green)
+    stand_button = Button(label="Stand", style=discord.ButtonStyle.red)
+    split_button = Button(label="Split", style=discord.ButtonStyle.blurple, disabled=not can_split(player_hand))
     
-    while dealer_score < 17:
-        game['dealer_hand'].append(deal_card())
-        dealer_score = calculate_score(game['dealer_hand'])
+    async def hit_callback(interaction: discord.Interaction):
+        if interaction.user.id != user_id:
+            await interaction.response.send_message("This is not your game!", ephemeral=True)
+            return
+        new_card = deal_card()
+        active_games[user_id]['player_hand'][0].append(new_card)
+        score = calculate_score(active_games[user_id]['player_hand'][0])
+        if score > 21:
+            embed.color = discord.Color.red()
+            embed.description += f"\nBusted! You lose."
+            view.clear_items()
+        else:
+            embed.description = f"Your hand: {format_hand(active_games[user_id]['player_hand'][0])} (Score: {score})\nDealer's visible card: {format_hand([dealer_hand[0]])}"
+        await interaction.response.edit_message(embed=embed, view=view)
     
-    if dealer_score > 21 or player_score > dealer_score:
-        user_database[user_id] += game['bet'] * 2
-        result = "You won!"
-    elif player_score < dealer_score:
-        result = "You lost."
-    else:
-        user_database[user_id] += game['bet']
-        result = "It's a tie!"
+    hit_button.callback = hit_callback
+    view.add_item(hit_button)
+    view.add_item(stand_button)
+    view.add_item(split_button)
     
-    await ctx.respond(f"{result}\nYour hand: {format_hand(game['player_hand'])} (Score: {player_score})\nDealer's hand: {format_hand(game['dealer_hand'])} (Score: {dealer_score})")
-
-@bot.slash_command(guild_ids=server, name='deposit', description='Admins can deposit money to a user')
-@commands.has_permissions(administrator=True)
-async def deposit(ctx, user: discord.Member, deposit_amount: discord.Option(int)):
-    user_id = user.id
-    user_database[user_id] = user_database.get(user_id, 0) + deposit_amount
-    await ctx.respond(f"{user.mention} has been credited with ${deposit_amount}. New balance: ${user_database[user_id]}")
-
-@bot.slash_command(guild_ids=server, name='balance', description='Check your balance')
-async def balance(ctx):
-    bal = user_database.get(ctx.author.id, 0)
-    await ctx.respond(f"Balance: ${bal}")
-
-@bot.event
-async def on_ready():
-    print(f"{bot.user} is online!")
-
-def main():
-    bot.run(TOKEN)
-
-if __name__ == '__main__':
-    main()
+    message = await ctx.respond(embed=embed, view=view)
+    active_games[user_id]['message'] = message
