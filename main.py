@@ -48,23 +48,6 @@ async def play(ctx, bet_amount: discord.Option(int)):
         await ctx.respond("Insufficient balance.")
         return
 
-@bot.slash_command(guild_ids=server, name='deposit', description='Deposit money into a user\'s account')
-async def deposit(ctx, user: discord.Option(discord.User), amount: discord.Option(int)):
-    # Check if the user is an admin
-    if not any(role.permissions.administrator for role in ctx.author.roles):
-        await ctx.respond("You do not have permission to perform this action.")
-        return
-
-    # Get the user's balance and update it
-    user_id = user.id
-    current_balance = user_database.get(user_id, 0)
-    new_balance = current_balance + amount
-    user_database[user_id] = new_balance
-
-    # Confirm the deposit
-    await ctx.respond(f"Successfully deposited {amount} into {user.name}'s account. New balance: {new_balance}")
-
-
     user_database[user_id] -= bet_amount
     player_hand = [deal_card(), deal_card()]
     dealer_hand = [deal_card(), deal_card()]
@@ -106,6 +89,16 @@ async def deposit(ctx, user: discord.Option(discord.User), amount: discord.Optio
     
     message = await ctx.respond(embed=embed, view=view)
     active_games[user_id]['message'] = message
+
+
+@bot.slash_command(guild_ids=server, name='deposit', description='Admins can deposit money to a user')
+@commands.has_permissions(administrator=True)
+async def deposit(ctx, user: discord.Member, deposit_amount: discord.Option(int)):
+    user_id = user.id
+    user_database[user_id] = user_database.get(user_id, 0) + deposit_amount
+    await ctx.respond(f"New balance: ${user_database[user_id]}")
+    await ctx.respond(f"{user.mention} has been credited with ${deposit_amount}. New balance: ${user_database[user_id]}")
+
 
 
 @bot.event
