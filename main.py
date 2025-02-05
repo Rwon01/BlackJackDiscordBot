@@ -256,6 +256,7 @@ async def split(ctx):
 
 
 vouchers = db["vouchers"]
+@bot.slash_command(guild_ids=server, name='redeem', description='Redeem a money voucher')
 async def redeem(ctx, code: discord.Option(str)):
     user_id = ctx.author.id
     user_data = vouchers.find_one({"text": code})
@@ -272,6 +273,7 @@ async def redeem(ctx, code: discord.Option(str)):
         await ctx.respond(f"Voucher redeemed! You received ${value}.")
     else:
         await ctx.respond("Invalid or already redeemed voucher.")
+
 
 @bot.event
 async def on_ready():
