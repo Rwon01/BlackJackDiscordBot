@@ -71,6 +71,20 @@ async def play(ctx, bet_amount: discord.Option(int)):
 
     await update_game_message(ctx, user_id)
 
+@bot.slash_command(guild_ids=server, name='deposit', description='Admins can deposit money to a user')
+@commands.has_permissions(administrator=True)
+async def deposit(ctx, user: discord.Member, deposit_amount: discord.Option(int)):
+    user_id = user.id
+    balances.update_one({"_id": user_id}, {"$inc": {"balance": deposit_amount}}, upsert=True)
+    new_balance = balances.find_one({"_id": user_id})["balance"]
+    await ctx.respond(f"{user.mention} has been credited with ${deposit_amount}. New balance: ${new_balance}")
+
+@bot.slash_command(guild_ids=server, name='balance', description='Check your balance')
+async def balance(ctx):
+    user_id = ctx.author.id
+    user_data = balances.find_one({"_id": user_id}) or {"balance": 0}
+    await ctx.respond(f"Balance: ${user_data['balance']}")
+
 async def update_game_message(ctx, user_id, interaction=None):
     game = active_games[user_id]
     player_hands = game['player_hand']
@@ -124,43 +138,6 @@ async def update_game_message(ctx, user_id, interaction=None):
     
     stand_button.callback = stand_callback
     view.add_item(stand_button)
-    
-    # DOUBLE DOWN Button (Only if two cards in the current hand)
-    double_down_button = Button(label="Double Down", style=discord.ButtonStyle.blurple, disabled=len(game['player_hand'][current_hand]) != 2)
-    async def double_down_callback(interaction: discord.Interaction):
-        if interaction.user.id != user_id:
-            await interaction.response.send_message("This is not your game!", ephemeral=True)
-            return
-        user_data = balances.find_one({"_id": user_id}) or {"balance": 0}
-        if user_data["balance"] < bet:
-            await interaction.response.send_message("Insufficient balance for double down.", ephemeral=True)
-            return
-        balances.update_one({"_id": user_id}, {"$inc": {"balance": -bet}})
-        game['bet'] *= 2
-        game['player_hand'][current_hand].append(deal_card())
-        await move_to_next_hand(ctx, user_id, interaction)
-    
-    double_down_button.callback = double_down_callback
-    view.add_item(double_down_button)
-    
-    # SPLIT Button (Only if the two cards are the same)
-    split_button = Button(label="Split", style=discord.ButtonStyle.gray, disabled=not can_split(game['player_hand'][0]))
-    async def split_callback(interaction: discord.Interaction):
-        if interaction.user.id != user_id:
-            await interaction.response.send_message("This is not your game!", ephemeral=True)
-            return
-        user_data = balances.find_one({"_id": user_id}) or {"balance": 0}
-        if user_data["balance"] < bet:
-            await interaction.response.send_message("Insufficient balance for splitting.", ephemeral=True)
-            return
-        balances.update_one({"_id": user_id}, {"$inc": {"balance": -bet}})
-        first_card = game['player_hand'][0][0]
-        second_card = game['player_hand'][0][1]
-        game['player_hand'] = [[first_card, deal_card()], [second_card, deal_card()]]
-        await update_game_message(ctx, user_id, interaction)
-    
-    split_button.callback = split_callback
-    view.add_item(split_button)
     
     if interaction:
         await interaction.response.edit_message(embed=embed, view=view)
