@@ -101,38 +101,36 @@ async def update_game_message(ctx, user_id, interaction=None):
 
     view = View()
 
+    # HIT Button
+    hit_button = Button(label="Hit", style=discord.ButtonStyle.green)
     async def hit_callback(interaction: discord.Interaction):
         game['player_hand'][current_hand].append(deal_card())
         score = calculate_score(game['player_hand'][current_hand])
         if score > 21:
-            embed.color = discord.Color.red()
-            embed.description += f"\nBusted!"
             await move_to_next_hand(ctx, user_id, interaction)
         else:
             await update_game_message(ctx, user_id, interaction)
-
-    async def stand_callback(interaction: discord.Interaction):
-        await move_to_next_hand(ctx, user_id, interaction)
-
-    async def double_down_callback(interaction: discord.Interaction):
-        await double_down(ctx)
-
-    async def split_callback(interaction: discord.Interaction):
-        await split(ctx)
-
-    hit_button = Button(label="Hit", style=discord.ButtonStyle.green)
     hit_button.callback = hit_callback
     view.add_item(hit_button)
 
+    # STAND Button
     stand_button = Button(label="Stand", style=discord.ButtonStyle.red)
+    async def stand_callback(interaction: discord.Interaction):
+        await move_to_next_hand(ctx, user_id, interaction)
     stand_button.callback = stand_callback
     view.add_item(stand_button)
 
+    # DOUBLE DOWN Button
     double_down_button = Button(label="Double Down", style=discord.ButtonStyle.blurple)
+    async def double_down_callback(interaction: discord.Interaction):
+        await double_down(ctx)
     double_down_button.callback = double_down_callback
     view.add_item(double_down_button)
 
+    # SPLIT Button
     split_button = Button(label="Split", style=discord.ButtonStyle.gray)
+    async def split_callback(interaction: discord.Interaction):
+        await split(ctx)
     split_button.callback = split_callback
     view.add_item(split_button)
 
@@ -148,69 +146,6 @@ async def move_to_next_hand(ctx, user_id, interaction):
         await update_game_message(ctx, user_id, interaction)
     else:
         await dealer_play(ctx, user_id, interaction)
-
-async def split(ctx):
-    user_id = ctx.author.id
-    game = active_games.get(user_id)
-
-    if not game:
-        await ctx.respond("No active game found.")
-        return
-
-    current_hand = game['current_hand']
-    hand = game['player_hand'][current_hand]
-
-    if not can_split(hand):
-        await ctx.respond("You can't split this hand!")
-        return
-
-    bet_amount = game['bet']
-    user_data = balances.find_one({"_id": user_id}) or {"balance": 0}
-
-    if user_data["balance"] < bet_amount:
-        await ctx.respond("Not enough balance to split!")
-        return
-
-    # Deduct extra bet amount
-    balances.update_one({"_id": user_id}, {"$inc": {"balance": -bet_amount}})
-
-    # Create two hands
-    new_hand1 = [hand[0], deal_card()]
-    new_hand2 = [hand[1], deal_card()]
-
-    # Replace current hand and add new one
-    game['player_hand'][current_hand] = new_hand1
-    game['player_hand'].append(new_hand2)
-
-    await update_game_message(ctx, user_id, ctx.interaction)
-
-
-async def double_down(ctx):
-    user_id = ctx.author.id
-    game = active_games.get(user_id)
-
-    if not game:
-        await ctx.respond("No active game found.")
-        return
-
-    if game['current_hand'] >= len(game['player_hand']):
-        await ctx.respond("Invalid hand.")
-        return
-
-    bet_amount = game['bet']
-    user_data = balances.find_one({"_id": user_id}) or {"balance": 0}
-
-    if user_data["balance"] < bet_amount:
-        await ctx.respond("Not enough balance to double down!")
-        return
-
-    # Deduct extra bet amount
-    balances.update_one({"_id": user_id}, {"$inc": {"balance": -bet_amount}})
-
-    # Add one card and move to next hand
-    game['player_hand'][game['current_hand']].append(deal_card())
-    await move_to_next_hand(ctx, user_id, ctx.interaction)
-
 
 async def dealer_play(ctx, user_id, interaction):
     game = active_games[user_id]
@@ -228,13 +163,11 @@ async def dealer_play(ctx, user_id, interaction):
         if player_score > 21:
             results.append(f"Hand {i+1}: **Busted** ❌")
         elif dealer_score > 21 or player_score > dealer_score:
-            winnings = game['bet'] * 2
-            balances.update_one({"_id": user_id}, {"$inc": {"balance": winnings}})
+            balances.update_one({"_id": user_id}, {"$inc": {"balance": game['bet'] * 2}})
             results.append(f"Hand {i+1}: **You win!** ✅")
         elif player_score < dealer_score:
             results.append(f"Hand {i+1}: **Dealer wins** ❌")
         else:
-            balances.update_one({"_id": user_id}, {"$inc": {"balance": game['bet']}})
             results.append(f"Hand {i+1}: **Push (Tie)** 🤝")
 
     embed.description = f"Dealer's hand: {format_hand(dealer_hand)} (Score: {dealer_score})\n\n" + "\n".join(results)
