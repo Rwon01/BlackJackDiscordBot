@@ -58,11 +58,23 @@ async def play(ctx, bet_amount: discord.Option(int)):
         await ctx.respond(embed=embed)
         return
 
-    active_games[user_id] = {'player_hand': [player_hand], 'dealer_hand': dealer_hand, 'bet': bet_amount}
+    active_games[user_id] = {'player_hand': [player_hand], 'dealer_hand': dealer_hand, 'bet': bet_amount, 'current_hand': 0}
+
+    await update_game_message(ctx, user_id)
+
+async def update_game_message(ctx, user_id, interaction=None):
+    """Updates the game message with the current state of the hands."""
+    game = active_games[user_id]
+    player_hands = game['player_hand']
+    dealer_hand = game['dealer_hand']
+    bet = game['bet']
+    current_hand = game['current_hand']
 
     embed = discord.Embed(
         title="Blackjack Game",
-        description=f"Your hand: {format_hand(player_hand)} (Score: {calculate_score(player_hand)})\nDealer's visible card: {format_hand([dealer_hand[0]])}",
+        description=f"Hand {current_hand + 1}/{len(player_hands)}\n"
+                    f"Your hand: {format_hand(player_hands[current_hand])} (Score: {calculate_score(player_hands[current_hand])})\n"
+                    f"Dealer's visible card: {format_hand([dealer_hand[0]])}",
         color=discord.Color.blue()
     )
 
@@ -70,86 +82,112 @@ async def play(ctx, bet_amount: discord.Option(int)):
 
     # HIT Button
     hit_button = Button(label="Hit", style=discord.ButtonStyle.green)
-
     async def hit_callback(interaction: discord.Interaction):
         if interaction.user.id != user_id:
             await interaction.response.send_message("This is not your game!", ephemeral=True)
             return
-        new_card = deal_card()
-        active_games[user_id]['player_hand'][0].append(new_card)
-        score = calculate_score(active_games[user_id]['player_hand'][0])
+        game['player_hand'][current_hand].append(deal_card())
+        score = calculate_score(game['player_hand'][current_hand])
         if score > 21:
             embed.color = discord.Color.red()
-            embed.description += f"\nBusted! You lose."
-            view.clear_items()
+            embed.description += f"\nBusted!"
+            await move_to_next_hand(ctx, user_id, interaction)
         else:
-            embed.description = f"Your hand: {format_hand(active_games[user_id]['player_hand'][0])} (Score: {score})\nDealer's visible card: {format_hand([dealer_hand[0]])}"
-        await interaction.response.edit_message(embed=embed, view=view)
+            await update_game_message(ctx, user_id, interaction)
 
     hit_button.callback = hit_callback
     view.add_item(hit_button)
 
     # STAND Button
     stand_button = Button(label="Stand", style=discord.ButtonStyle.red)
-
     async def stand_callback(interaction: discord.Interaction):
         if interaction.user.id != user_id:
             await interaction.response.send_message("This is not your game!", ephemeral=True)
             return
-
-        # Dealer plays
-        dealer_hand = active_games[user_id]['dealer_hand']
-        while calculate_score(dealer_hand) < 17:
-            dealer_hand.append(deal_card())
-
-        dealer_score = calculate_score(dealer_hand)
-        player_score = calculate_score(active_games[user_id]['player_hand'][0])
-
-        if dealer_score > 21 or player_score > dealer_score:
-            user_database[user_id] += bet_amount * 2
-            result = "You win!"
-            color = discord.Color.green()
-        elif player_score < dealer_score:
-            result = "Dealer wins!"
-            color = discord.Color.red()
-        else:
-            user_database[user_id] += bet_amount  # Refund bet
-            result = "It's a tie!"
-            color = discord.Color.orange()
-
-        embed.color = color
-        embed.description = f"Your hand: {format_hand(active_games[user_id]['player_hand'][0])} (Score: {player_score})\n" \
-                            f"Dealer's hand: {format_hand(dealer_hand)} (Score: {dealer_score})\n\n{result}"
-        view.clear_items()
-        await interaction.response.edit_message(embed=embed, view=view)
+        await move_to_next_hand(ctx, user_id, interaction)
 
     stand_button.callback = stand_callback
     view.add_item(stand_button)
 
-    # SPLIT Button (if allowed)
-    split_button = Button(label="Split", style=discord.ButtonStyle.blurple, disabled=not can_split(player_hand))
+    # DOUBLE DOWN Button (Only if two cards in the current hand)
+    double_down_button = Button(label="Double Down", style=discord.ButtonStyle.blurple, disabled=len(game['player_hand'][current_hand]) != 2)
+    async def double_down_callback(interaction: discord.Interaction):
+        if interaction.user.id != user_id:
+            await interaction.response.send_message("This is not your game!", ephemeral=True)
+            return
+        if user_database[user_id] < bet:
+            await interaction.response.send_message("Insufficient balance for double down.", ephemeral=True)
+            return
+        user_database[user_id] -= bet
+        game['bet'] *= 2
+        game['player_hand'][current_hand].append(deal_card())
+        await move_to_next_hand(ctx, user_id, interaction)
 
+    double_down_button.callback = double_down_callback
+    view.add_item(double_down_button)
+
+    # SPLIT Button (Only if the two cards are the same)
+    split_button = Button(label="Split", style=discord.ButtonStyle.gray, disabled=not can_split(game['player_hand'][0]))
     async def split_callback(interaction: discord.Interaction):
         if interaction.user.id != user_id:
             await interaction.response.send_message("This is not your game!", ephemeral=True)
             return
-
-        user_database[user_id] -= bet_amount  # Deduct additional bet
-        hand1 = [player_hand[0], deal_card()]
-        hand2 = [player_hand[1], deal_card()]
-        active_games[user_id]['player_hand'] = [hand1, hand2]
-
-        embed.description = f"Split your hand!\nHand 1: {format_hand(hand1)} (Score: {calculate_score(hand1)})\n" \
-                            f"Hand 2: {format_hand(hand2)} (Score: {calculate_score(hand2)})\n" \
-                            f"Dealer's visible card: {format_hand([dealer_hand[0]])}"
-        split_button.disabled = True  # Prevent multiple splits
-        await interaction.response.edit_message(embed=embed, view=view)
+        if user_database[user_id] < bet:
+            await interaction.response.send_message("Insufficient balance for splitting.", ephemeral=True)
+            return
+        user_database[user_id] -= bet
+        first_card = game['player_hand'][0][0]
+        second_card = game['player_hand'][0][1]
+        game['player_hand'] = [[first_card, deal_card()], [second_card, deal_card()]]
+        await update_game_message(ctx, user_id, interaction)
 
     split_button.callback = split_callback
     view.add_item(split_button)
 
-    message = await ctx.respond(embed=embed, view=view)
-    active_games[user_id]['message'] = message
+    if interaction:
+        await interaction.response.edit_message(embed=embed, view=view)
+    else:
+        message = await ctx.respond(embed=embed, view=view)
+        active_games[user_id]['message'] = message
+
+async def move_to_next_hand(ctx, user_id, interaction):
+    """Moves to the next hand if the user has split; otherwise, starts dealer play."""
+    game = active_games[user_id]
+    if game['current_hand'] + 1 < len(game['player_hand']):
+        game['current_hand'] += 1
+        await update_game_message(ctx, user_id, interaction)
+    else:
+        await dealer_play(ctx, user_id, interaction)
+
+async def dealer_play(ctx, user_id, interaction):
+    """Handles the dealer's play after all player's hands are finished."""
+    game = active_games[user_id]
+    dealer_hand = game['dealer_hand']
+
+    while calculate_score(dealer_hand) < 17:
+        dealer_hand.append(deal_card())
+
+    dealer_score = calculate_score(dealer_hand)
+    embed = discord.Embed(title="Game Over", color=discord.Color.orange())
+
+    results = []
+    for i, hand in enumerate(game['player_hand']):
+        player_score = calculate_score(hand)
+        if player_score > 21:
+            results.append(f"Hand {i+1}: **Busted** ❌")
+        elif dealer_score > 21 or player_score > dealer_score:
+            user_database[user_id] += game['bet'] * 2
+            results.append(f"Hand {i+1}: **You win!** ✅")
+        elif player_score < dealer_score:
+            results.append(f"Hand {i+1}: **Dealer wins** ❌")
+        else:
+            user_database[user_id] += game['bet']
+            results.append(f"Hand {i+1}: **Push (Tie)** 🤝")
+
+    embed.description = f"Dealer's hand: {format_hand(dealer_hand)} (Score: {dealer_score})\n\n" + "\n".join(results)
+    view = View()
+    await interaction.response.edit_message(embed=embed, view=view)
+    del active_games[user_id]
 
 
 @bot.slash_command(guild_ids=server, name='deposit', description='Admins can deposit money to a user')
@@ -159,6 +197,12 @@ async def deposit(ctx, user: discord.Member, deposit_amount: discord.Option(int)
     user_database[user_id] = user_database.get(user_id, 0) + deposit_amount
     await ctx.respond(f"New balance: ${user_database[user_id]}")
     await ctx.respond(f"{user.mention} has been credited with ${deposit_amount}. New balance: ${user_database[user_id]}")
+
+@bot.slash_command(guild_ids=server, name='balance', description='Check your balance')
+async def balance(ctx):
+    bal = user_database.get(ctx.author.id, 0)
+    await ctx.respond(f"Balance: ${bal}")
+
 
 @bot.event
 async def on_ready():
