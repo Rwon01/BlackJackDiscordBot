@@ -8,11 +8,13 @@ from pymongo import MongoClient
 from discord.ui import Button, View
 
 load_dotenv()
+
 # Connect to MongoDB
-MONGO_URI = os.getenv("MONGO_URI")
+MONGO_URI: Final[str] = os.getenv("MONGO_URI")
 client = MongoClient(MONGO_URI)
 db = client["blackjack_db"]
 balances = db["balances"]
+
 TOKEN: Final[str] = os.getenv('DISCORD_TOKEN')
 server = [1016060727053783040]
 bot = discord.Bot()
@@ -21,7 +23,6 @@ suits = {'Hearts': '♥️', 'Diamonds': '♦️', 'Clubs': '♣️', 'Spades': 
 ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
 values = {rank: min(i + 2, 10) if rank not in ['J', 'Q', 'K', 'A'] else (11 if rank == 'A' else 10) for i, rank in enumerate(ranks)}
 
-user_database = {}  # Stores user balances
 active_games = {}  # Stores ongoing games
 
 def deal_card():
@@ -171,12 +172,13 @@ async def dealer_play(ctx, user_id, interaction):
         if player_score > 21:
             results.append(f"Hand {i+1}: **Busted** ❌")
         elif dealer_score > 21 or player_score > dealer_score:
-            user_database[user_id] += game['bet'] * 2
+            winnings = game['bet'] * 2
+            balances.update_one({"_id": user_id}, {"$inc": {"balance": winnings}})
             results.append(f"Hand {i+1}: **You win!** ✅")
         elif player_score < dealer_score:
             results.append(f"Hand {i+1}: **Dealer wins** ❌")
         else:
-            user_database[user_id] += game['bet']
+            balances.update_one({"_id": user_id}, {"$inc": {"balance": game['bet']}})
             results.append(f"Hand {i+1}: **Push (Tie)** 🤝")
 
     embed.description = f"Dealer's hand: {format_hand(dealer_hand)} (Score: {dealer_score})\n\n" + "\n".join(results)
@@ -184,28 +186,9 @@ async def dealer_play(ctx, user_id, interaction):
     await interaction.response.edit_message(embed=embed, view=view)
     del active_games[user_id]
 
-
-@bot.slash_command(guild_ids=server, name='deposit', description='Admins can deposit money to a user')
-@commands.has_permissions(administrator=True)
-async def deposit(ctx, user: discord.Member, deposit_amount: discord.Option(int)):
-    user_id = user.id
-    user_database[user_id] = user_database.get(user_id, 0) + deposit_amount
-    await ctx.respond(f"New balance: ${user_database[user_id]}")
-    await ctx.respond(f"{user.mention} has been credited with ${deposit_amount}. New balance: ${user_database[user_id]}")
-
-@bot.slash_command(guild_ids=server, name='balance', description='Check your balance')
-async def balance(ctx):
-    bal = user_database.get(ctx.author.id, 0)
-    await ctx.respond(f"Balance: ${bal}")
-
-
 @bot.event
 async def on_ready():
     print(f"{bot.user} is now online!")
 
 if __name__ == "__main__":
     bot.run(TOKEN)
-
-
-
-    
