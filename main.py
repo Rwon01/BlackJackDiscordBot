@@ -123,7 +123,7 @@ async def update_game_message(ctx, user_id, interaction=None):
     # DOUBLE DOWN Button
     double_down_button = Button(label="Double Down", style=discord.ButtonStyle.blurple)
     async def double_down_callback(interaction: discord.Interaction):
-        await double_down(ctx)
+        await double_down(ctx, interaction)  # Pass interaction correctly
     double_down_button.callback = double_down_callback
     view.add_item(double_down_button)
 
@@ -182,12 +182,12 @@ async def dealer_play(ctx, user_id, interaction):
     await interaction.edit_original_message(embed=embed, view=View())
     del active_games[user_id]
 
-async def double_down(ctx):
+async def double_down(ctx, interaction: discord.Interaction):
     user_id = ctx.author.id
     game = active_games.get(user_id)
 
     if not game:
-        await ctx.respond("No active game found.")
+        await interaction.response.send_message("No active game found.", ephemeral=True)
         return
 
     current_hand = game['current_hand']
@@ -195,14 +195,14 @@ async def double_down(ctx):
 
     # Ensure that the player can only double down if they have exactly 2 cards
     if len(hand) != 2:
-        await ctx.respond("You can only double down with exactly 2 cards.")
+        await interaction.response.send_message("You can only double down with exactly 2 cards.", ephemeral=True)
         return
 
     bet_amount = game['bet']
     user_data = balances.find_one({"_id": user_id}) or {"balance": 0}
 
     if user_data["balance"] < bet_amount:
-        await ctx.respond("Not enough balance to double down!")
+        await interaction.response.send_message("Not enough balance to double down!", ephemeral=True)
         return
 
     # Deduct extra bet amount (to double the bet)
@@ -215,7 +215,8 @@ async def double_down(ctx):
     game['bet'] *= 2
 
     # After doubling down, automatically move to the next hand
-    await move_to_next_hand(ctx, user_id, ctx.interaction)
+    await move_to_next_hand(ctx, user_id, interaction)
+
 async def split(ctx):
     user_id = ctx.author.id
     game = active_games.get(user_id)
