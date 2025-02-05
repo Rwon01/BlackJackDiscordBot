@@ -256,13 +256,22 @@ async def split(ctx):
 
 
 vouchers = db["vouchers"]
-@bot.slash_command(guild_ids=server, name='redeem', description='Redeem a money voucher')
 async def redeem(ctx, code: discord.Option(str)):
+    user_id = ctx.author.id
     user_data = vouchers.find_one({"text": code})
-    if user_data:
-        value = user_data[value]
-        print(value)
 
+    if user_data:
+        value = user_data["value"]  # Fix: Access 'value' as a string key
+        
+        # Credit user balance
+        balances.update_one({"_id": user_id}, {"$inc": {"balance": value}}, upsert=True)
+        
+        # Remove the redeemed voucher from the database
+        vouchers.delete_one({"text": code})
+
+        await ctx.respond(f"Voucher redeemed! You received ${value}.")
+    else:
+        await ctx.respond("Invalid or already redeemed voucher.")
 
 @bot.event
 async def on_ready():
