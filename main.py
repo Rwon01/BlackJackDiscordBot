@@ -172,6 +172,8 @@ async def dealer_play(ctx, user_id, interaction):
         elif player_score < dealer_score:
             results.append(f"Hand {i+1}: **Dealer wins** ❌")
         else:
+            # In case of a tie, return the bet to the player
+            balances.update_one({"_id": user_id}, {"$inc": {"balance": game['bet']}})
             results.append(f"Hand {i+1}: **Push (Tie)** 🤝")
 
     embed.description = f"Dealer's hand: {format_hand(dealer_hand)} (Score: {dealer_score})\n\n" + "\n".join(results)
@@ -209,9 +211,11 @@ async def double_down(ctx):
     # Add one card and update the hand
     hand.append(deal_card())
 
+    # Update the bet amount for the current hand (double the bet)
+    game['bet'] *= 2
+
     # After doubling down, automatically move to the next hand
     await move_to_next_hand(ctx, user_id, ctx.interaction)
-
 async def split(ctx):
     user_id = ctx.author.id
     game = active_games.get(user_id)
