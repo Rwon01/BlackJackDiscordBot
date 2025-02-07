@@ -116,6 +116,9 @@ async def update_game_message(ctx, user_id, interaction=None):
     # STAND Button
     stand_button = Button(label="Stand", style=discord.ButtonStyle.red)
     async def stand_callback(interaction: discord.Interaction):
+        if interaction.user.id != ctx.author.id:
+            await interaction.response.send_message("You can't use this button!", ephemeral=True)
+            return
         await move_to_next_hand(ctx, user_id, interaction)
     stand_button.callback = stand_callback
     view.add_item(stand_button)
@@ -123,6 +126,9 @@ async def update_game_message(ctx, user_id, interaction=None):
     # DOUBLE DOWN Button
     double_down_button = Button(label="Double Down", style=discord.ButtonStyle.blurple)
     async def double_down_callback(interaction: discord.Interaction):
+        if interaction.user.id != ctx.author.id:
+            await interaction.response.send_message("You can't use this button!", ephemeral=True)
+            return
         await double_down(ctx, interaction)  # Pass interaction correctly
     double_down_button.callback = double_down_callback
     view.add_item(double_down_button)
@@ -130,6 +136,9 @@ async def update_game_message(ctx, user_id, interaction=None):
     # SPLIT Button
     split_button = Button(label="Split", style=discord.ButtonStyle.gray)
     async def split_callback(interaction: discord.Interaction):
+        if interaction.user.id != ctx.author.id:
+            await interaction.response.send_message("You can't use this button!", ephemeral=True)
+            return
         await split(ctx)
     split_button.callback = split_callback
     view.add_item(split_button)
@@ -183,6 +192,11 @@ async def dealer_play(ctx, user_id, interaction):
     del active_games[user_id]
 
 async def double_down(ctx, interaction: discord.Interaction):
+
+    if interaction.user.id != ctx.author.id:
+        await interaction.response.send_message("You can't use this button!", ephemeral=True)
+        return
+    
     user_id = ctx.author.id
     game = active_games.get(user_id)
 
@@ -217,9 +231,15 @@ async def double_down(ctx, interaction: discord.Interaction):
     # After doubling down, automatically move to the next hand
     await move_to_next_hand(ctx, user_id, interaction)
 
-async def split(ctx):
+async def split(ctx, interaction : discord.Interaction):
+    if interaction.user.id != ctx.author.id:
+        await interaction.response.send_message("You can't use this button!", ephemeral=True)
+        return
+    
     user_id = ctx.author.id
     game = active_games.get(user_id)
+
+    
 
     if not game:
         await ctx.respond("No active game found.")
@@ -273,6 +293,25 @@ async def redeem(ctx, code: discord.Option(str)):
         await ctx.respond(f"Voucher redeemed! You received ${value}.")
     else:
         await ctx.respond("Invalid or already redeemed voucher.")
+
+
+@bot.slash_command(guild_ids=server, name='transfer', description='Transfer your balance to another user')
+async def transfer(ctx,  transfer_user : discord.Member, transfer_amount: discord.Option(int)):
+    user_id = ctx.author.id
+    user_data = balances.find_one({"_id": user_id}) or {"balance": 0}
+    bal = user_data["balance"]
+    
+    if bal < transfer_amount:
+        await ctx.respond("Insufficient balance.")
+        return
+    
+
+    balances.update_one({"_id": user_id}, {"$inc": {"balance": -transfer_amount}}, upsert=True)
+    balances.update_one({"_id": transfer_user.id}, {"$inc": {"balance": transfer_amount}}, upsert=True)
+
+    new_balance = balances.find_one({"_id": transfer_user.id})["balance"]
+    await ctx.respond(f"[Transfer] {transfer_user.mention} has been credited with ${transfer_amount}. New balance: ${new_balance}")
+
 
 
 @bot.event
