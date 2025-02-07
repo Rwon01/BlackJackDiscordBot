@@ -360,7 +360,7 @@ async def crash(ctx, bet : discord.Option(int)):
     startTime = time.time()
     while True:
         elapsedTime = time.time() - startTime
-        await ctx.edit_original_response(int(elapsedTime))
+        await ctx.edit(int(elapsedTime))
         if elapsedTime >= 5:
             break
     
