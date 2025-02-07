@@ -45,7 +45,13 @@ def is_blackjack(hand):
     return len(hand) == 2 and any(card[0] == 'A' for card in hand) and any(card[0] in ['10', 'J', 'Q', 'K'] for card in hand)
 
 def can_split(hand):
-    return len(hand) == 2 and hand[0][0] == hand[1][0]
+    if len(hand) != 2:
+        return False
+    value_map = {'K': 10, 'Q': 10, 'J': 10, '10': 10}  # Face cards and 10s are equivalent
+    rank1 = hand[0][0]
+    rank2 = hand[1][0]
+
+    return (rank1 == rank2) or (value_map.get(rank1, rank1) == value_map.get(rank2, rank2))
 
 @bot.slash_command(guild_ids=server, name='play', description='Start a Blackjack game')
 async def play(ctx, bet_amount: discord.Option(int)):
@@ -64,6 +70,8 @@ async def play(ctx, bet_amount: discord.Option(int)):
     if is_blackjack(player_hand):
         winnings = int(bet_amount * 2.5)
         balances.update_one({"_id": user_id}, {"$inc": {"balance": winnings}})
+        balances.update_one({"_id": user_id}, {"$inc": {"hands_won": 1}}, upsert=True)
+
         embed = discord.Embed(title="Blackjack!", description=f"You win 1.5x your bet!\nYour hand: {format_hand(player_hand)}", color=discord.Color.green())
         await ctx.respond(embed=embed)
         return
@@ -183,11 +191,14 @@ async def dealer_play(ctx, user_id, interaction):
         player_score = calculate_score(hand)
         if player_score > 21:
             results.append(f"Hand {i+1}: **Busted** ❌")
+            balances.update_one({"_id": user_id}, {"$inc": {"hands_lost": 1}}, upsert=True)
         elif dealer_score > 21 or player_score > dealer_score:
             balances.update_one({"_id": user_id}, {"$inc": {"balance": game['bet'] * 2}})
+            balances.update_one({"_id": user_id}, {"$inc": {"hands_won": 1}}, upsert=True)
             results.append(f"Hand {i+1}: **You win!** ✅")
         elif player_score < dealer_score:
             results.append(f"Hand {i+1}: **Dealer wins** ❌")
+            balances.update_one({"_id": user_id}, {"$inc": {"hands_lost": 1}}, upsert=True)
         else:
             # In case of a tie, return the bet to the player
             balances.update_one({"_id": user_id}, {"$inc": {"balance": game['bet']}})
@@ -319,7 +330,21 @@ async def transfer(ctx,  transfer_user : discord.Member, transfer_amount: discor
     new_balance = balances.find_one({"_id": transfer_user.id})["balance"]
     await ctx.respond(f"[Transfer] {transfer_user.mention} has been credited with ${transfer_amount}. New balance: ${new_balance}")
 
-
+@bot.slash_command(guild_ids=server, name = "stats", description = "Show your Blackjack stats")
+async def stats(ctx):
+    user_id = ctx.author.id
+    user_data = balances.find_one({"_id": user_id})
+    if user_data:
+        hands_won = user_data["hands_won"]
+        hands_lost = user_data["hands_lost"]
+        win_ratio =  int(hands_won/hands_lost)
+        await ctx.respond(f"{ctx.author.name} Stats \n",
+                          f"Hands won: {hands_won} \n",
+                          f"Hands lost: {hands_lost} \n",
+                          f"Win ratio: {win_ratio}"
+                          )
+    else:
+        await ctx.respond("No stats found")
 
 @bot.event
 async def on_ready():
