@@ -351,7 +351,7 @@ async def stats(ctx):
         await ctx.respond("No stats found.")
 
 
-@bot.slash_command(guilds_server = server, name = 'crash', description = "start a game of crash")
+@bot.slash_command(guild_ids = server, name = 'crash', description = "start a game of crash")
 @commands.has_permissions(administrator=True)
 async def crash(ctx, bet : discord.Option(int)):
     currentTime = time.time()
