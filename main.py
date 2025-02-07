@@ -354,11 +354,11 @@ async def stats(ctx):
 @bot.slash_command(guild_ids = server, name = 'crash', description = "start a game of crash")
 @commands.has_permissions(administrator=True)
 async def crash(ctx, bet : discord.Option(int)):
-    currentTime = time.time()
+    currentTime = int(time.time())
 
-    while currentTime < currentTime + 5:
-        await ctx.respond(time.time())
-        currentTime = time.time()
+    while currentTime > currentTime + 3:
+        await ctx.respond(int(time.time()))
+        currentTime = int(time.time())
 
 
 @bot.event
