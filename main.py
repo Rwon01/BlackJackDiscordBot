@@ -357,13 +357,13 @@ async def stats(ctx):
 async def crash(ctx, bet : discord.Option(int)):
 
     msg = await ctx.respond("Seconds")
-    startTime = time.time()
+    start_time = time.time()
     while True:
-        elapsedTime = time.time() - startTime
-        await msg.edit(content=f"Seconds: {elapsedTime:.2f}")
-        if elapsedTime >= 5:
+        elapsed_time = round(time.time() - start_time, 1)
+        await msg.edit(content=f"Seconds: {elapsed_time:.2f}")
+        if elapsed_time >= 5:
             break
-        await asyncio.sleep(0.2)
+        await asyncio.sleep(0.5)
     
 
 
