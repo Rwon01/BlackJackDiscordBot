@@ -90,12 +90,17 @@ async def update_game_message(ctx, user_id, interaction=None):
     player_hands = game['player_hand']
     dealer_hand = game['dealer_hand']
     current_hand = game['current_hand']
+    user_bal = balances.find_one({"_id": ctx.author.id}) or {"balance": 0}
     
     embed = discord.Embed(
         title="Blackjack Game",
-        description=f"Hand {current_hand + 1}/{len(player_hands)}\n"
-                    f"Your hand: {format_hand(player_hands[current_hand])} (Score: {calculate_score(player_hands[current_hand])})\n"
-                    f"Dealer's visible card: {format_hand([dealer_hand[0]])}",
+        description=(
+            f"Hand {current_hand + 1}/{len(player_hands)}\n"
+            f"Your hand: {format_hand(player_hands[current_hand])} "
+            f"(Score: {calculate_score(player_hands[current_hand])})\n"
+            f"Dealer's visible card: {format_hand([dealer_hand[0]])}\n"
+            f"Your current balance: ${user_bal['balance']}"
+        ),
         color=discord.Color.blue()
     )
 
@@ -104,6 +109,9 @@ async def update_game_message(ctx, user_id, interaction=None):
     # HIT Button
     hit_button = Button(label="Hit", style=discord.ButtonStyle.green)
     async def hit_callback(interaction: discord.Interaction):
+        if interaction.user.id != ctx.author.id:
+            await interaction.response.send_message("You can't use this button!", ephemeral=True)
+            return
         game['player_hand'][current_hand].append(deal_card())
         score = calculate_score(game['player_hand'][current_hand])
         if score > 21:
@@ -231,7 +239,7 @@ async def double_down(ctx, interaction: discord.Interaction):
     # After doubling down, automatically move to the next hand
     await move_to_next_hand(ctx, user_id, interaction)
 
-async def split(ctx, interaction : discord.Interaction):
+async def split(ctx, interaction: discord.Interaction):
     if interaction.user.id != ctx.author.id:
         await interaction.response.send_message("You can't use this button!", ephemeral=True)
         return
@@ -239,24 +247,22 @@ async def split(ctx, interaction : discord.Interaction):
     user_id = ctx.author.id
     game = active_games.get(user_id)
 
-    
-
     if not game:
-        await ctx.respond("No active game found.")
+        await interaction.response.send_message("No active game found.", ephemeral=True)
         return
 
     current_hand = game['current_hand']
     hand = game['player_hand'][current_hand]
 
     if not can_split(hand):
-        await ctx.respond("You can't split this hand!")
+        await interaction.response.send_message("You can't split this hand!", ephemeral=True)
         return
 
     bet_amount = game['bet']
     user_data = balances.find_one({"_id": user_id}) or {"balance": 0}
 
     if user_data["balance"] < bet_amount:
-        await ctx.respond("Not enough balance to split!")
+        await interaction.response.send_message("Not enough balance to split!", ephemeral=True)
         return
 
     # Deduct extra bet amount
@@ -270,7 +276,8 @@ async def split(ctx, interaction : discord.Interaction):
     game['player_hand'][current_hand] = new_hand1
     game['player_hand'].append(new_hand2)
 
-    await update_game_message(ctx, user_id, ctx.interaction)
+    # Update the game message
+    await update_game_message(ctx, user_id, interaction)
 
 #######################################################################
 
