@@ -6,6 +6,7 @@ import discord
 from discord.ext import commands
 from pymongo import MongoClient
 from discord.ui import Button, View
+import time
 
 load_dotenv()
 
@@ -349,9 +350,21 @@ async def stats(ctx):
     else:
         await ctx.respond("No stats found.")
 
+
+@bot.slash_command(guilds_server = server, name = 'crash', description = "start a game of crash")
+@commands.has_permissions(administrator=True)
+async def crash(ctx, bet : discord.Option(int)):
+    currentTime = time.time()
+
+    while currentTime < currentTime + 5:
+        await ctx.respond(time.time())
+        currentTime = time.time()
+
+
 @bot.event
 async def on_ready():
     print(f"{bot.user} is now online!")
 
 if __name__ == "__main__":
     bot.run(TOKEN)
+
