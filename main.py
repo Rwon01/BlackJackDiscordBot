@@ -355,12 +355,11 @@ async def stats(ctx):
 @commands.has_permissions(administrator=True)
 async def crash(ctx, bet : discord.Option(int)):
 
-    ctx.defer()
-    ctx.respond("Seconds")
+    msg = await ctx.respond("Seconds")
     startTime = time.time()
     while True:
         elapsedTime = time.time() - startTime
-        await ctx.edit(int(elapsedTime))
+        await msg.edit(content = int(elapsedTime))
         if elapsedTime >= 5:
             break
     
