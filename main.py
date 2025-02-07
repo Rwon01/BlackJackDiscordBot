@@ -7,6 +7,7 @@ from discord.ext import commands
 from pymongo import MongoClient
 from discord.ui import Button, View
 import time
+import asyncio
 
 load_dotenv()
 
@@ -359,9 +360,10 @@ async def crash(ctx, bet : discord.Option(int)):
     startTime = time.time()
     while True:
         elapsedTime = time.time() - startTime
-        await msg.edit(content = int(elapsedTime))
+        await msg.edit(content=f"Seconds: {elapsedTime:.2f}")
         if elapsedTime >= 5:
             break
+        await asyncio.sleep(0.2)
     
 
 
