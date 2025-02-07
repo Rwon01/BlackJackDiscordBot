@@ -341,10 +341,10 @@ async def stats(ctx):
         win_ratio = hands_won / hands_lost if hands_lost > 0 else hands_won  # Avoid division by zero
         
         await ctx.respond(
-            f"**{ctx.author.name}'s Stats**\n"
-            f"🃏 Hands won: {hands_won}\n"
-            f"❌ Hands lost: {hands_lost}\n"
-            f"🏆 Win ratio: {win_ratio:.2f}"  # Format win ratio to 2 decimal places
+            f" **{ctx.author.name}'s Stats** '\n'
+            🃏 Hands won: {hands_won} '\n'
+            ❌ Hands lost: {hands_lost} '\n'
+            🏆 Win ratio: {win_ratio:.2f} "  # Format win ratio to 2 decimal places
         )
     else:
         await ctx.respond("No stats found.")
