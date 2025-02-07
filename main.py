@@ -155,7 +155,7 @@ async def update_game_message(ctx, user_id, interaction=None):
         if interaction.user.id != ctx.author.id:
             await interaction.response.send_message("You can't use this button!", ephemeral=True)
             return
-        await split(ctx)
+        await split(ctx, interaction)
     split_button.callback = split_callback
     view.add_item(split_button)
 
@@ -207,7 +207,7 @@ async def dealer_play(ctx, user_id, interaction):
     embed.description = f"Dealer's hand: {format_hand(dealer_hand)} (Score: {dealer_score})\n\n" + "\n".join(results)
     
     # Edit the original message with the final game result
-    await interaction.edit_original_message(embed=embed, view=View())
+    await interaction.edit_original_response(embed=embed, view=View())
     del active_games[user_id]
 
 async def double_down(ctx, interaction: discord.Interaction):
