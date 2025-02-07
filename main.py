@@ -330,21 +330,24 @@ async def transfer(ctx,  transfer_user : discord.Member, transfer_amount: discor
     new_balance = balances.find_one({"_id": transfer_user.id})["balance"]
     await ctx.respond(f"[Transfer] {transfer_user.mention} has been credited with ${transfer_amount}. New balance: ${new_balance}")
 
-@bot.slash_command(guild_ids=server, name = "stats", description = "Show your Blackjack stats")
+@bot.slash_command(guild_ids=server, name="stats", description="Show your Blackjack stats")
 async def stats(ctx):
     user_id = ctx.author.id
     user_data = balances.find_one({"_id": user_id})
+    
     if user_data:
-        hands_won = user_data["hands_won"]
-        hands_lost = user_data["hands_lost"]
-        win_ratio =  int(hands_won/hands_lost)
-        await ctx.respond(f"{ctx.author.name} Stats \n",
-                          f"Hands won: {hands_won} \n",
-                          f"Hands lost: {hands_lost} \n",
-                          f"Win ratio: {win_ratio}"
-                          )
+        hands_won = user_data.get("hands_won", 0)
+        hands_lost = user_data.get("hands_lost", 0)
+        win_ratio = hands_won / hands_lost if hands_lost > 0 else hands_won  # Avoid division by zero
+        
+        await ctx.respond(
+            f"**{ctx.author.name}'s Stats**\n"
+            f"🃏 Hands won: {hands_won}\n"
+            f"❌ Hands lost: {hands_lost}\n"
+            f"🏆 Win ratio: {win_ratio:.2f}"  # Format win ratio to 2 decimal places
+        )
     else:
-        await ctx.respond("No stats found")
+        await ctx.respond("No stats found.")
 
 @bot.event
 async def on_ready():
