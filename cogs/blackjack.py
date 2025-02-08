@@ -6,40 +6,6 @@ import random
 from main import server, balances, vouchers
 from discord.ui import Button, View
 
-suits = {'Hearts': '♥️', 'Diamonds': '♦️', 'Clubs': '♣️', 'Spades': '♠️'}
-ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
-values = {rank: min(i + 2, 10) if rank not in ['J', 'Q', 'K', 'A'] else (11 if rank == 'A' else 10) for i, rank in enumerate(ranks)}
-
-active_games = {}  # Stores ongoing games
-
-def deal_card():
-    rank = random.choice(ranks)
-    suit = random.choice(list(suits.keys()))
-    return rank, suits[suit]
-
-def format_hand(hand):
-    return ' '.join([f"{card[0]}{card[1]}" for card in hand])
-
-def calculate_score(hand):
-    score = sum(values[card[0]] for card in hand)
-    aces = sum(1 for card in hand if card[0] == 'A')
-    while score > 21 and aces:
-        score -= 10
-        aces -= 1
-    return score
-
-def is_blackjack(hand):
-    return len(hand) == 2 and any(card[0] == 'A' for card in hand) and any(card[0] in ['10', 'J', 'Q', 'K'] for card in hand)
-
-def can_split(hand):
-    if len(hand) != 2:
-        return False
-    value_map = {'K': 10, 'Q': 10, 'J': 10, '10': 10}  # Face cards and 10s are equivalent
-    rank1 = hand[0][0]
-    rank2 = hand[1][0]
-
-    return (rank1 == rank2) or (value_map.get(rank1, rank1) == value_map.get(rank2, rank2))
-
 
 class Blackjack(commands.Cog):
     def __init__(self, bot):
@@ -51,8 +17,42 @@ class Blackjack(commands.Cog):
 
     #BLACKJACK
 
+    suits = {'Hearts': '♥️', 'Diamonds': '♦️', 'Clubs': '♣️', 'Spades': '♠️'}
+    ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
+    values = {rank: min(i + 2, 10) if rank not in ['J', 'Q', 'K', 'A'] else (11 if rank == 'A' else 10) for i, rank in enumerate(ranks)}
+
+    active_games = {}  # Stores ongoing games
+
+    def deal_card():
+        rank = random.choice(ranks)
+        suit = random.choice(list(suits.keys()))
+        return rank, suits[suit]
+
+    def format_hand(hand):
+        return ' '.join([f"{card[0]}{card[1]}" for card in hand])
+
+    def calculate_score(hand):
+        score = sum(values[card[0]] for card in hand)
+        aces = sum(1 for card in hand if card[0] == 'A')
+        while score > 21 and aces:
+            score -= 10
+            aces -= 1
+        return score
+
+    def is_blackjack(hand):
+        return len(hand) == 2 and any(card[0] == 'A' for card in hand) and any(card[0] in ['10', 'J', 'Q', 'K'] for card in hand)
+
+    def can_split(hand):
+        if len(hand) != 2:
+            return False
+        value_map = {'K': 10, 'Q': 10, 'J': 10, '10': 10}  # Face cards and 10s are equivalent
+        rank1 = hand[0][0]
+        rank2 = hand[1][0]
+
+        return (rank1 == rank2) or (value_map.get(rank1, rank1) == value_map.get(rank2, rank2))
+
     @commands.slash_command(guild_ids=server, name='play', description='Start a Blackjack game')
-    async def play(self, ctx, bet_amount: discord.Option(int, "Enter bet amount", min_value = 0, max_value=1000)):
+    async def play(ctx, bet_amount: discord.Option(int, "Enter bet amount", min_value = 0, max_value=1000)):
         user_id = ctx.author.id
         user_data = balances.find_one({"_id": user_id}) or {"balance": 0}
         bal = user_data["balance"]
