@@ -18,7 +18,7 @@ db = client["blackjack_db"]
 balances = db["balances"]
 
 TOKEN: Final[str] = os.getenv('DISCORD_TOKEN')
-server = [1016060727053783040]
+server = [1337634750667427973]
 bot = discord.Bot()
 
 suits = {'Hearts': '♥️', 'Diamonds': '♦️', 'Clubs': '♣️', 'Spades': '♠️'}
@@ -56,12 +56,12 @@ def can_split(hand):
     return (rank1 == rank2) or (value_map.get(rank1, rank1) == value_map.get(rank2, rank2))
 
 @bot.slash_command(guild_ids=server, name='play', description='Start a Blackjack game')
-async def play(ctx, bet_amount: discord.Option(int)):
+async def play(ctx, bet_amount: discord.Option(int, "Enter bet amount", min_value = 0, max_value=1000)):
     user_id = ctx.author.id
     user_data = balances.find_one({"_id": user_id}) or {"balance": 0}
     bal = user_data["balance"]
     
-    if bal < bet_amount:
+    if bal < bet_amount or (bet_amount < 0):
         await ctx.respond("Insufficient balance.")
         return
 
@@ -316,12 +316,12 @@ async def redeem(ctx, code: discord.Option(str)):
 
 
 @bot.slash_command(guild_ids=server, name='transfer', description='Transfer your balance to another user')
-async def transfer(ctx,  transfer_user : discord.Member, transfer_amount: discord.Option(int)):
+async def transfer(ctx,  transfer_user : discord.Member, transfer_amount: discord.Option(int, min_value = 1)):
     user_id = ctx.author.id
     user_data = balances.find_one({"_id": user_id}) or {"balance": 0}
     bal = user_data["balance"]
     
-    if bal < transfer_amount:
+    if bal < transfer_amount or transfer_amount > 0:
         await ctx.respond("Insufficient balance.")
         return
     
@@ -419,7 +419,7 @@ class CrashView(discord.ui.View):
         else:
             await interaction.response.send_message("You have no active bet!", ephemeral=True)
 
-@bot.slash_command(guild_ids=[server], name="crash", description="Start a game of Crash!")
+@bot.slash_command(guild_ids=server, name="crash", description="Start a game of Crash!")
 @commands.has_permissions(administrator=True)
 async def crash(ctx):
     if crash_active or betting_active:
@@ -430,7 +430,7 @@ async def crash(ctx):
     view = CrashView(ctx, time.time())
     await ctx.send("Game starting...", view=view)
 
-@bot.slash_command(guild_ids=[server], name="joincrash", description="Join an active game of Crash!")
+@bot.slash_command(guild_ids=server, name="joincrash", description="Join an active game of Crash!")
 async def joincrash(ctx, bet: int):
     if not betting_active:
         await ctx.respond("Betting is currently closed. Wait for the next round.", ephemeral=True)
