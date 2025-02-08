@@ -321,7 +321,7 @@ async def transfer(ctx,  transfer_user : discord.Member, transfer_amount: discor
     user_data = balances.find_one({"_id": user_id}) or {"balance": 0}
     bal = user_data["balance"]
     
-    if bal < transfer_amount or transfer_amount > 0:
+    if bal < transfer_amount or transfer_amount < 0:
         await ctx.respond("Insufficient balance.")
         return
     
