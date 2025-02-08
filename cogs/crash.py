@@ -10,7 +10,7 @@ class Crash(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.Cog.Listener()
+    @commands.Cog.listener()
     async def on_ready(self):
         print(f"{__name__} is online and loaded")
 
