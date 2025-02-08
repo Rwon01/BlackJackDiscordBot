@@ -45,7 +45,7 @@ class Blackjack(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.Cog.listener()
+    @commands.Cog.Listener()
     async def on_ready(self):
         print(f"{__name__} is online and loaded")
 
