@@ -49,9 +49,6 @@ class Blackjack(commands.Cog):
     async def on_ready(self):
         print(f"{__name__} is online and loaded")
 
-    async def setup(bot):
-        await bot.add_cog(Blackjack(bot))
-
     #BLACKJACK
 
     @commands.slash_command(guild_ids=server, name='play', description='Start a Blackjack game')
@@ -350,4 +347,5 @@ class Blackjack(commands.Cog):
         else:
             await ctx.respond("No stats found.")
 
-
+    async def setup(bot):
+        await bot.add_cog(Blackjack(bot))

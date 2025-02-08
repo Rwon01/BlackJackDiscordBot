@@ -5,14 +5,38 @@ import time
 import random
 from main import server
 
-class CrashView(discord.ui.View):
+
+class Crash(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
+
+    @commands.Cog.listener()
+    async def on_ready(self):
+        print(f"{__name__} is online and loaded")
+
+    #CRASH
+
+    # Store player bets and states
+    players = {}
+    crash_active = False
+    betting_active = False
+    multiplier = 1.0
+
+    def reset_game():
+        global players, crash_active, betting_active, multiplier
+        players = {}
+        crash_active = False
+        betting_active = False
+        multiplier = 1.0
+
+    class CrashView(discord.ui.View):
         def __init__(self, ctx, start_time):
             super().__init__()
             self.ctx = ctx
             self.start_time = start_time
             self.crashed = False
             self.task = asyncio.create_task(self.run_crash())
-        
+
         async def run_crash(self):
             global crash_active, betting_active, multiplier
             betting_active = True
@@ -45,45 +69,16 @@ class CrashView(discord.ui.View):
             
             crash_active = False
             await asyncio.sleep(60)  # Restart game in 1 minute
-            self.reset_game()
+            reset_game()
 
-        async def reset_game():
-            global players, crash_active, betting_active, multiplier
-            players = {}
-            crash_active = False
-            betting_active = False
-            multiplier = 1.0
-
-
-            @discord.ui.button(label="Withdraw", style=discord.ButtonStyle.green)
-            async def withdraw(self, interaction: discord.Interaction, button: discord.ui.Button):
-                if interaction.user.id in players and players[interaction.user.id]['active']:
-                    winnings = round(players[interaction.user.id]['bet'] * multiplier, 2)
-                    players[interaction.user.id]['active'] = False
-                    await interaction.response.send_message(f"{interaction.user.mention} withdrew at x{multiplier:.2f} and won {winnings} coins! 💰", ephemeral=True)
-                else:
-                    await interaction.response.send_message("You have no active bet!", ephemeral=True)
-
-class Crash(commands.Cog):
-    def __init__(self, bot):
-        self.bot = bot
-
-    @commands.Cog.listener()
-    async def on_ready(self):
-        print(f"{__name__} is online and loaded")
-
-    async def setup(bot):
-        await bot.add_cog(Crash(bot))
-
-    #CRASH
-
-    # Store player bets and states
-    players = {}
-    crash_active = False
-    betting_active = False
-    multiplier = 1.0
-
-    
+        @discord.ui.button(label="Withdraw", style=discord.ButtonStyle.green)
+        async def withdraw(self, interaction: discord.Interaction, button: discord.ui.Button):
+            if interaction.user.id in players and players[interaction.user.id]['active']:
+                winnings = round(players[interaction.user.id]['bet'] * multiplier, 2)
+                players[interaction.user.id]['active'] = False
+                await interaction.response.send_message(f"{interaction.user.mention} withdrew at x{multiplier:.2f} and won {winnings} coins! 💰", ephemeral=True)
+            else:
+                await interaction.response.send_message("You have no active bet!", ephemeral=True)
 
     @commands.slash_command(guild_ids=server, name="crash", description="Start a game of Crash!")
     @commands.has_permissions(administrator=True)
@@ -109,3 +104,6 @@ class Crash(commands.Cog):
         players[ctx.author.id] = {'bet': bet, 'active': True}
         await ctx.respond(f"{ctx.author} joined the game with a bet of {bet} coins!")
 
+
+    async def setup(bot):
+        await bot.add_cog(Crash(bot))
