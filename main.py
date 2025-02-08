@@ -351,20 +351,84 @@ async def stats(ctx):
     else:
         await ctx.respond("No stats found.")
 
+# Store player bets and states
+players = {}
+crash_active = False
+multiplier = 1.0
 
-@bot.slash_command(guild_ids = server, name = 'crash', description = "start a game of crash")
+def reset_game():
+    global players, crash_active, multiplier
+    players = {}
+    crash_active = False
+    multiplier = 1.0
+
+class CrashView(discord.ui.View):
+    def __init__(self, ctx, start_time):
+        super().__init__()
+        self.ctx = ctx
+        self.start_time = start_time
+        self.crashed = False
+        self.task = asyncio.create_task(self.run_crash())
+
+    async def run_crash(self):
+        global crash_active, multiplier
+        crash_active = True
+        msg = await self.ctx.respond("Game starting in 5 seconds! Place your bets!")
+        await asyncio.sleep(5)
+
+        # Start crash multiplier
+        await msg.edit(content=f"Game started! Crash point: ???")
+        start_time = time.time()
+
+        while True:
+            elapsed_time = time.time() - start_time
+            multiplier = round(1.0 + elapsed_time * 0.1, 2)
+            await msg.edit(content=f"Multiplier: x{multiplier:.2f}")
+            await asyncio.sleep(0.5)
+            
+            # Probability of crashing increases with multiplier
+            crash_chance = min(1, (multiplier / 5.0))
+            if random.random() < crash_chance:
+                break
+        
+        self.crashed = True
+        await msg.edit(content=f"CRASHED at x{multiplier:.2f}! 🎲")
+        
+        # Check player withdrawals
+        for user_id, data in players.items():
+            if data['active']:
+                players[user_id]['bet'] = 0  # They lost their bet
+        
+        crash_active = False
+        await asyncio.sleep(60)  # Restart game in 1 minute
+        reset_game()
+
+    @discord.ui.button(label="Withdraw", style=discord.ButtonStyle.green)
+    async def withdraw(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id in players and players[interaction.user.id]['active']:
+            winnings = round(players[interaction.user.id]['bet'] * multiplier, 2)
+            players[interaction.user.id]['active'] = False
+            await interaction.response.send_message(f"{interaction.user.mention} withdrew at x{multiplier:.2f} and won {winnings} coins! 💰", ephemeral=True)
+        else:
+            await interaction.response.send_message("You have no active bet!", ephemeral=True)
+
+@bot.slash_command(guild_ids=[server], name="crash", description="Start a game of Crash!")
 @commands.has_permissions(administrator=True)
-async def crash(ctx, bet : discord.Option(int)):
-
-    msg = await ctx.respond("Seconds")
-    start_time = time.time()
-    while True:
-        elapsed_time = round(time.time() - start_time, 1)
-        await msg.edit(content=f"Seconds: {elapsed_time:.2f}")
-        if elapsed_time >= 5:
-            break
-        await asyncio.sleep(0.5)
+async def crash(ctx, bet: int):
+    if crash_active:
+        await ctx.respond("A game is already running! Wait for the next round.", ephemeral=True)
+        return
     
+    if bet <= 0:
+        await ctx.respond("Bet must be greater than 0!", ephemeral=True)
+        return
+    
+    players[ctx.author.id] = {'bet': bet, 'active': True}
+    await ctx.respond(f"{ctx.author.mention} placed a bet of {bet} coins!", ephemeral=True)
+    
+    if not crash_active:
+        view = CrashView(ctx, time.time())
+        await ctx.send("Game starting...", view=view)
 
 
 @bot.event
