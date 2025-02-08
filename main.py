@@ -351,15 +351,21 @@ async def stats(ctx):
     else:
         await ctx.respond("No stats found.")
 
+
+
+#CRASH
+
 # Store player bets and states
 players = {}
 crash_active = False
+betting_active = False
 multiplier = 1.0
 
 def reset_game():
-    global players, crash_active, multiplier
+    global players, crash_active, betting_active, multiplier
     players = {}
     crash_active = False
+    betting_active = False
     multiplier = 1.0
 
 class CrashView(discord.ui.View):
@@ -371,12 +377,13 @@ class CrashView(discord.ui.View):
         self.task = asyncio.create_task(self.run_crash())
 
     async def run_crash(self):
-        global crash_active, multiplier
-        crash_active = True
-        msg = await self.ctx.respond("Game starting in 5 seconds! Place your bets!")
-        await asyncio.sleep(5)
+        global crash_active, betting_active, multiplier
+        betting_active = True
+        msg = await self.ctx.send("Game starting in 10 seconds! Use `/joincrash <bet>` to place your bet!")
+        await asyncio.sleep(10)
+        betting_active = False
 
-        # Start crash multiplier
+        crash_active = True
         await msg.edit(content=f"Game started! Crash point: ???")
         start_time = time.time()
 
@@ -414,9 +421,19 @@ class CrashView(discord.ui.View):
 
 @bot.slash_command(guild_ids=[server], name="crash", description="Start a game of Crash!")
 @commands.has_permissions(administrator=True)
-async def crash(ctx, bet: int):
-    if crash_active:
+async def crash(ctx):
+    if crash_active or betting_active:
         await ctx.respond("A game is already running! Wait for the next round.", ephemeral=True)
+        return
+    
+    await ctx.send("A new crash game has started! Use `/joincrash <bet>` to place your bet.")
+    view = CrashView(ctx, time.time())
+    await ctx.send("Game starting...", view=view)
+
+@bot.slash_command(guild_ids=[server], name="joincrash", description="Join an active game of Crash!")
+async def joincrash(ctx, bet: int):
+    if not betting_active:
+        await ctx.respond("Betting is currently closed. Wait for the next round.", ephemeral=True)
         return
     
     if bet <= 0:
@@ -424,11 +441,7 @@ async def crash(ctx, bet: int):
         return
     
     players[ctx.author.id] = {'bet': bet, 'active': True}
-    await ctx.respond(f"{ctx.author.mention} placed a bet of {bet} coins!", ephemeral=True)
-    
-    if not crash_active:
-        view = CrashView(ctx, time.time())
-        await ctx.send("Game starting...", view=view)
+    await ctx.send(f"{ctx.author.mention} joined the game with a bet of {bet} coins!")
 
 
 @bot.event
