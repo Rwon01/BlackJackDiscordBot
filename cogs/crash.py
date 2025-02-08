@@ -82,7 +82,7 @@ class Crash(commands.Cog):
 
     @commands.slash_command(guild_ids=server, name="crash", description="Start a game of Crash!")
     @commands.has_permissions(administrator=True)
-    async def crash(ctx):
+    async def crash(self, ctx):
         if crash_active or betting_active:
             await ctx.respond("A game is already running! Wait for the next round.", ephemeral=True)
             return
@@ -92,7 +92,7 @@ class Crash(commands.Cog):
         await ctx.send("Game starting...", view=view)
 
     @commands.slash_command(guild_ids=server, name="joincrash", description="Join an active game of Crash!")
-    async def joincrash(ctx, bet: int):
+    async def joincrash(self, ctx, bet: int):
         if not betting_active:
             await ctx.respond("Betting is currently closed. Wait for the next round.", ephemeral=True)
             return
