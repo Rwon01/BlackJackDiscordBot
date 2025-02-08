@@ -18,7 +18,7 @@ db = client["blackjack_db"]
 balances = db["balances"]
 
 TOKEN: Final[str] = os.getenv('DISCORD_TOKEN')
-server = [1337634750667427973]
+server = [1016060727053783040]
 bot = discord.Bot()
 
 suits = {'Hearts': '♥️', 'Diamonds': '♦️', 'Clubs': '♣️', 'Spades': '♠️'}
