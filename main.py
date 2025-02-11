@@ -353,69 +353,83 @@ async def stats(ctx):
 
 
 
-#CRASH
-
 global has_crashed
 global active_game
 global active_game_bets
+
 has_crashed = False
-active_game = []
+active_game = None  # Store active game ID properly
 active_game_bets = {}
+
+bet_lock = asyncio.Lock()  # Prevents race conditions in bet handling
 
 
 @bot.slash_command(guild_ids=server, name="crash", description="Start crash")
-async def crash(ctx, time_delay : discord.Option(int, min_value = 1)):
+async def crash(ctx, time_delay: discord.Option(int, min_value=1)):
+    global active_game, has_crashed
 
     if active_game or has_crashed:
-        return await ctx.respond("Active game running",  ephemeral=True) 
-    
-    active_game = ctx.id
-    crash_msg = discord.Embed(title="Crash game starting")
-    original_msg = await ctx.respond(embed=crash_msg)
-    start_time = time.time()
-    elapsed_time = round(time.time() - start_time)
+        return await ctx.respond("Active game running", ephemeral=True)
 
-    while elapsed_time < time_delay:
+    active_game = ctx.id
+    has_crashed = False
+
+    crash_msg = discord.Embed(title="Crash game starting")
+    original_msg = await ctx.send(embed=crash_msg)  # Use send() to allow edits
+
+    start_time = time.time()
+
+    while round(time.time() - start_time) < time_delay:
         elapsed_time = round(time.time() - start_time)
         remaining_time = time_delay - elapsed_time
-        crash_msg = discord.Embed(title="Crash game starting", description=f"Starting in {remaining_time:.2f} seconds")
+        crash_msg.description = f"Starting in {remaining_time} seconds"
         await original_msg.edit(embed=crash_msg)
         await asyncio.sleep(0.5)
-    
+
+    # Betting phase
     betting_view = View()
     withdraw_button = Button(label="Withdraw", style=discord.ButtonStyle.green)
     betting_view.add_item(withdraw_button)
-    bets = discord.Embed(title="Bets")
-    betting_msg = await ctx.respond(view=betting_view)
 
-    current_multiplier = 1
-    crash_multiplier = round( 0.96 / random.uniform(0.0001,1), 2)
+    bets_embed = discord.Embed(title="Bets")
+    betting_msg = await ctx.send(embed=bets_embed, view=betting_view)
+
+    current_multiplier = 1.0
+    crash_multiplier = round(random.uniform(1.05, 5.0), 2)  # Adjusted fairness
+
     while current_multiplier < crash_multiplier:
+        async with bet_lock:
+            bets_embed.clear_fields()
+            if active_game_bets:
+                for user, bet in active_game_bets.items():
+                    bets_embed.add_field(name=user, value=f"Bet: {bet}")
 
-        if active_game_bets:
-            for key, value in active_game_bets.items():
-                bets.add_field(name=key, value=value)
+        await betting_msg.edit(content=f"Multiplier: {current_multiplier:.2f} 🚀 | Target: {crash_multiplier}", embed=bets_embed, view=betting_view)
 
-        await betting_msg.edit(f"{current_multiplier:.2f} DEMO: {crash_multiplier}", view = betting_view, embed = bets)
         current_multiplier += 0.05
-        await asyncio.sleep(0.50)
+        await asyncio.sleep(0.5)
 
-        bets.clear_fields()
-        
-    
-    await betting_msg.edit(f"BUSTED AT {crash_multiplier}")
+    await betting_msg.edit(content=f"💥 BUSTED at {crash_multiplier}x", view=None)
+    active_game = None  # Reset game state
+    has_crashed = True
+    active_game_bets.clear()
+
 
 @bot.slash_command(guild_ids=server, name="joincrash", description="Join a crash")
-async def joincrash(ctx, bet : discord.Option(int, min_value = 1)):
+async def joincrash(ctx, bet: discord.Option(int, min_value=1)):
+    global active_game_bets
+
     user_id = ctx.author.id
     user_data = balances.find_one({"_id": user_id}) or {"balance": 0}
     bal = user_data["balance"]
-    
-    if bal < bet or (bet < 0):
-        await ctx.respond("Insufficient balance.")
-        return
 
-    active_game_bets[ctx.author.name] = bet
+    if bal < bet:
+        return await ctx.respond("Insufficient balance.", ephemeral=True)
+
+    async with bet_lock:
+        active_game_bets[ctx.author.name] = bet
+
+    await ctx.respond(f"✅ {ctx.author.name} joined Crash with {bet}!")
 
 @bot.event
 async def on_ready():
