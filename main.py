@@ -362,8 +362,8 @@ active_game_bets = {}
 async def crash(ctx, time_delay : discord.Option(int, min_value = 1)):
 
     if  active_game_bets or has_crashed:
-        return await ctx.respond("Active game running",  ephemeral=True)
-    
+        return await ctx.respond("Active game running",  ephemeral=True) 
+
     crash_msg = discord.Embed(title="Crash game starting")
     original_msg = await ctx.respond(embed=crash_msg)
     start_time = time.time()
@@ -381,11 +381,14 @@ async def crash(ctx, time_delay : discord.Option(int, min_value = 1)):
     betting_view.add_item(withdraw_button)
     betting_msg = await ctx.respond(view=betting_view)
 
-    random_int = random.randint(0,9)
-    while random_int != 0:
-        random_int = random.randint(0,9)
-        await betting_msg.edit(f"{random_int}", view = betting_view)
-        await asyncio.sleep(1)
+    current_multiplier = 1
+    crash_multiplier = round( 0.98 / random.uniform(0.000001,1), 2)
+    while current_multiplier < crash_multiplier:
+        current_multiplier += 0.05
+        await betting_msg.edit(f"{current_multiplier}", view = betting_view)
+        await asyncio.sleep(0.20)
+    
+    await betting_msg.edit(f"BUST")
 
 
 
