@@ -391,6 +391,7 @@ async def crash(ctx, time_delay: discord.Option(int, min_value=1)):
     # Betting phase
     betting_view = View()
     withdraw_button = Button(label="Withdraw", style=discord.ButtonStyle.green)
+    withdraw_button.callback = withdraw_callback
     betting_view.add_item(withdraw_button)
 
     bets_embed = discord.Embed(title="Bets")
