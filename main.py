@@ -372,7 +372,7 @@ async def crash(ctx, time_delay : discord.Option(int, min_value = 1)):
     while elapsed_time < time_delay:
         elapsed_time = round(time.time() - start_time)
         remaining_time = time_delay - elapsed_time
-        crash_msg = discord.Embed(title="Crash game starting", description=f"Starting in {remaining_time:.2f} seconds)")
+        crash_msg = discord.Embed(title="Crash game starting", description=f"Starting in {remaining_time:.2f} seconds")
         await original_msg.edit(embed=crash_msg)
         await asyncio.sleep(0.5)
     
@@ -385,10 +385,10 @@ async def crash(ctx, time_delay : discord.Option(int, min_value = 1)):
     crash_multiplier = round( 0.98 / random.uniform(0.000001,1), 2)
     while current_multiplier < crash_multiplier:
         current_multiplier += 0.05
-        await betting_msg.edit(f"{current_multiplier}", view = betting_view)
+        await betting_msg.edit(f"{current_multiplier:.2f}", view = betting_view)
         await asyncio.sleep(0.20)
     
-    await betting_msg.edit(f"BUST")
+    await betting_msg.edit(f"BUSTED AT {crash_multiplier}")
 
 
 
