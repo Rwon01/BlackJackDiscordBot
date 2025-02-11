@@ -359,7 +359,7 @@ active_game_bets = {}
 
 
 @bot.slash_command(guild_ids=server, name="crash", description="Start crash")
-async def crash(ctx, time_delay : discord.Option(int, min_value = 1), interaction : discord.Interaction):
+async def crash(ctx, interaction : discord.Interaction, time_delay : discord.Option(int, min_value = 1)):
 
     if not active_game_bets or has_crashed:
         return await ctx.respond("Active game running",  ephemeral=True)
