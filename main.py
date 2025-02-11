@@ -357,7 +357,9 @@ global has_crashed
 global active_game
 global active_game_bets
 global current_multiplier
+global can_join
 
+can_join = True
 current_multiplier = 1
 has_crashed = False
 active_game = None  # Store active game ID properly
@@ -368,7 +370,7 @@ bet_lock = asyncio.Lock()  # Prevents race conditions in bet handling
 
 @bot.slash_command(guild_ids=server, name="crash", description="Start crash")
 async def crash(ctx, time_delay: discord.Option(int, min_value=1)):
-    global active_game, has_crashed, current_multiplier
+    global active_game, has_crashed, current_multiplier, can_join
 
     if active_game:
         return await ctx.respond("Active game running", ephemeral=True)
@@ -380,6 +382,7 @@ async def crash(ctx, time_delay: discord.Option(int, min_value=1)):
     original_msg = await ctx.send(embed=crash_msg)  # Use send() to allow edits
 
     start_time = time.time()
+    can_join = True
 
     while round(time.time() - start_time) < time_delay:
         elapsed_time = round(time.time() - start_time)
@@ -389,6 +392,7 @@ async def crash(ctx, time_delay: discord.Option(int, min_value=1)):
         await asyncio.sleep(0.5)
 
     # Betting phase
+    can_join = False
     betting_view = View()
     withdraw_button = Button(label="Withdraw", style=discord.ButtonStyle.green)
     withdraw_button.callback = withdraw_callback
@@ -419,11 +423,10 @@ async def crash(ctx, time_delay: discord.Option(int, min_value=1)):
 
 
 async def withdraw_callback(interaction : discord.Interaction):
-    current_multiplier
-    global active_game, active_game_bets
+    global active_game, active_game_bets, can_join
     if interaction.user.name in active_game_bets:
-        if has_crashed == False:
-            winning = active_game_bets[interaction.user.name] * current_multiplier
+        if not has_crashed:
+            winning = round(active_game_bets[interaction.user.name] * current_multiplier)
             await interaction.respond(f"{interaction.user.name} withdrew {winning}")
             balances.update_one({"_id": interaction.user.id}, {"$inc": {"balance": winning}}, upsert=True)
         else:
@@ -433,7 +436,7 @@ async def withdraw_callback(interaction : discord.Interaction):
 
 @bot.slash_command(guild_ids=server, name="joincrash", description="Join a crash")
 async def joincrash(ctx, bet: discord.Option(int, min_value=1)):
-    global active_game_bets
+    global active_game_bets, active_game, can_join
 
     user_id = ctx.author.id
     user_data = balances.find_one({"_id": user_id}) or {"balance": 0}
@@ -442,8 +445,9 @@ async def joincrash(ctx, bet: discord.Option(int, min_value=1)):
     if bal < bet:
         return await ctx.respond("Insufficient balance.", ephemeral=True)
 
-    async with bet_lock:
-        active_game_bets[ctx.author.name] = bet
+    if can_join:
+        async with bet_lock:
+            active_game_bets[ctx.author.name] = bet
 
     await ctx.respond(f"{ctx.author.name} joined Crash with ${bet}", ephemeral=True)
 
