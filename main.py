@@ -371,7 +371,7 @@ async def crash(ctx, time_delay: discord.Option(int, min_value=1)):
     if active_game or has_crashed:
         return await ctx.respond("Active game running", ephemeral=True)
 
-    active_game = ctx.id
+    active_game = ctx.interaction.id
     has_crashed = False
 
     crash_msg = discord.Embed(title="Crash game starting")
