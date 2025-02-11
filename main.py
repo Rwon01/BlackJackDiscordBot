@@ -384,9 +384,10 @@ async def crash(ctx, time_delay : discord.Option(int, min_value = 1)):
     current_multiplier = 1
     crash_multiplier = round( 0.98 / random.uniform(0.000001,1), 2)
     while current_multiplier < crash_multiplier:
-        current_multiplier += 0.05
         await betting_msg.edit(f"{current_multiplier:.2f} DEMO: {crash_multiplier}", view = betting_view)
+        current_multiplier += 0.05
         await asyncio.sleep(0.20)
+        
     
     await betting_msg.edit(f"BUSTED AT {crash_multiplier}")
 
