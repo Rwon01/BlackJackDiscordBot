@@ -365,8 +365,9 @@ async def crash(ctx, time_delay : discord.Option(int, min_value = 1)):
         return await ctx.respond("Active game running",  ephemeral=True)
     
     start_time = time.time()
-    elapsed_time = time.time - start_time
-    while elapsed_time > time_delay:
+    elapsed_time = time.time() - start_time
+    while elapsed_time < time_delay:
+        elapsed_time = time.time() - start_time
         crash_msg = discord.Embed(title="Crash game starting", description=f"Starting in {elapsed_time:.2f} seconds)")
         await ctx.edit_original_response(embed=crash_msg)
         asyncio.sleep(0.1)
