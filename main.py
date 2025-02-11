@@ -56,7 +56,7 @@ def can_split(hand):
     return (rank1 == rank2) or (value_map.get(rank1, rank1) == value_map.get(rank2, rank2))
 
 @bot.slash_command(guild_ids=server, name='play', description='Start a Blackjack game')
-async def play(ctx, bet_amount: discord.Option(int, "Enter bet amount", min_value = 0, max_value=1000)):
+async def play(ctx, bet_amount: discord.Option(int, "Enter bet amount", min_value = 1, max_value=1000)):
     user_id = ctx.author.id
     user_data = balances.find_one({"_id": user_id}) or {"balance": 0}
     bal = user_data["balance"]
