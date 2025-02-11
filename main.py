@@ -354,9 +354,11 @@ async def stats(ctx):
 
 
 #CRASH
-has_crashed = False
+
+global has_crashed
 global active_game
 global active_game_bets
+has_crashed = False
 active_game = []
 active_game_bets = {}
 
