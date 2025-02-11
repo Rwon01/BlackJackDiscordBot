@@ -426,8 +426,8 @@ async def crash(ctx, time_delay: discord.Option(int, min_value=5, max_value = 30
         await betting_msg.edit(content=f"Multiplier: {current_multiplier:.2f} 🚀", embed=bets_embed, view=betting_view)
 
         current_multiplier += 0.1
-        await asyncio.sleep(0.25)
-    
+        await asyncio.sleep(0.5)
+
     await betting_msg.edit(content=f"💥 BUSTED at {crash_multiplier}x", view=None)
     active_game = None  # Reset game state
     has_crashed = True
