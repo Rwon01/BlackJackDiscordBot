@@ -392,10 +392,9 @@ async def crash(ctx, time_delay: discord.Option(int, min_value=1)):
     withdraw_button = Button(label="Withdraw", style=discord.ButtonStyle.green)
     betting_view.add_item(withdraw_button)
 
-    temp = await ctx.respond("")
     bets_embed = discord.Embed(title="Bets")
-    betting_msg = await ctx.send(embed=bets_embed, view=betting_view)
-    await temp.delete()
+    betting_msg = await ctx.respond(embed=bets_embed, view=betting_view)
+
     current_multiplier = 1.0
     crash_multiplier = round(random.uniform(1.05, 5.0), 2)  # Adjusted fairness
 
