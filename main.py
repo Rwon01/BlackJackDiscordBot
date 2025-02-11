@@ -368,18 +368,19 @@ async def crash(ctx, time_delay : discord.Option(int, min_value = 1)):
     original_msg = await ctx.respond(embed=crash_msg)
     start_time = time.time()
     elapsed_time = round(time.time() - start_time)
+
     while elapsed_time < time_delay:
         elapsed_time = round(time.time() - start_time)
         remaining_time = time_delay - elapsed_time
         crash_msg = discord.Embed(title="Crash game starting", description=f"Starting in {remaining_time:.2f} seconds)")
-
-        if elapsed_time == 3:
-            crash_msg.add_field(name="Test", value="Test")
-
         await original_msg.edit(embed=crash_msg)
         await asyncio.sleep(0.5)
     
-    await ctx.respond("banana")
+    betting_view = View()
+    withdraw_button = Button(label="Withdraw", style=discord.ButtonStyle.green)
+    betting_view.add_item(withdraw_button)
+    betting_msg = await ctx.respond(view=betting_view)
+    
     
 
 @bot.event
