@@ -369,11 +369,13 @@ bet_lock = asyncio.Lock()  # Prevents race conditions in bet handling
 
 
 @bot.slash_command(guild_ids=server, name="crash", description="Start crash")
-async def crash(ctx, time_delay: discord.Option(int, min_value=1)):
+async def crash(ctx, time_delay: discord.Option(int, min_value=5, max_value = 30)):
     global active_game, has_crashed, current_multiplier, can_join
 
     if active_game:
         return await ctx.respond("Active game running", ephemeral=True)
+
+    await ctx.respond("Started game", ephemeral=True)
 
     active_game = ctx.interaction.id
     has_crashed = False
@@ -389,13 +391,12 @@ async def crash(ctx, time_delay: discord.Option(int, min_value=1)):
         remaining_time = time_delay - elapsed_time
         crash_msg.description = f"Starting in {remaining_time} seconds"
         async with bet_lock:
-            bets_embed = discord.Embed(title="Bets")
-            bets_embed.clear_fields()
+            crash_msg.clear_fields()
             if active_game_bets:
                 for user, bet in active_game_bets.items():
-                    bets_embed.add_field(name=user, value=f"Bet: {bet}")
+                    crash_msg.add_field(name=user, value=f"Bet: {bet}")
 
-
+    
         await original_msg.edit(embed=crash_msg)
         await asyncio.sleep(0.5)
 
@@ -447,7 +448,7 @@ async def withdraw_callback(interaction : discord.Interaction):
 
 
 @bot.slash_command(guild_ids=server, name="joincrash", description="Join a crash")
-async def joincrash(ctx, bet: discord.Option(int, min_value=1)):
+async def joincrash(ctx, bet: discord.Option(int, min_value=1, max_value = 1000)):
     global active_game_bets, active_game, can_join
 
     user_id = ctx.author.id
