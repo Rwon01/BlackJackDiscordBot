@@ -386,14 +386,16 @@ async def crash(ctx, time_delay: discord.Option(int, min_value=1)):
         await original_msg.edit(embed=crash_msg)
         await asyncio.sleep(0.5)
 
+    await original_msg.delete()
     # Betting phase
     betting_view = View()
     withdraw_button = Button(label="Withdraw", style=discord.ButtonStyle.green)
     betting_view.add_item(withdraw_button)
 
+    temp = await ctx.respond("")
     bets_embed = discord.Embed(title="Bets")
     betting_msg = await ctx.send(embed=bets_embed, view=betting_view)
-
+    await temp.delete()
     current_multiplier = 1.0
     crash_multiplier = round(random.uniform(1.05, 5.0), 2)  # Adjusted fairness
 
@@ -430,6 +432,7 @@ async def joincrash(ctx, bet: discord.Option(int, min_value=1)):
         active_game_bets[ctx.author.name] = bet
 
     await ctx.respond(f"{ctx.author.name} joined Crash with ${bet}", ephemeral=True)
+
 
 @bot.event
 async def on_ready():
