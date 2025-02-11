@@ -356,7 +356,9 @@ async def stats(ctx):
 global has_crashed
 global active_game
 global active_game_bets
+global current_multiplier
 
+current_multiplier = 1
 has_crashed = False
 active_game = None  # Store active game ID properly
 active_game_bets = {}
@@ -366,7 +368,7 @@ bet_lock = asyncio.Lock()  # Prevents race conditions in bet handling
 
 @bot.slash_command(guild_ids=server, name="crash", description="Start crash")
 async def crash(ctx, time_delay: discord.Option(int, min_value=1)):
-    global active_game, has_crashed
+    global active_game, has_crashed, current_multiplier
 
     if active_game:
         return await ctx.respond("Active game running", ephemeral=True)
@@ -415,6 +417,20 @@ async def crash(ctx, time_delay: discord.Option(int, min_value=1)):
     active_game_bets.clear()
 
 
+async def withdraw_callback(interaction : discord.Interaction):
+    current_multiplier
+    global active_game, active_game_bets
+    if interaction.user.name in active_game_bets.keys:
+        if has_crashed == False:
+            interaction.respond(f"{interaction.user.name} withdrew")
+            winning = active_game_bets[interaction.user.name] * current_multiplier
+            balances.update_one({"_id": interaction.user.id}, {"$inc": {"balance": winning}}, upsert=True)
+
+        else:
+            interaction.respond(f"I so sorry u too late! 🤓")
+
+
+
 @bot.slash_command(guild_ids=server, name="joincrash", description="Join a crash")
 async def joincrash(ctx, bet: discord.Option(int, min_value=1)):
     global active_game_bets
@@ -430,6 +446,8 @@ async def joincrash(ctx, bet: discord.Option(int, min_value=1)):
         active_game_bets[ctx.author.name] = bet
 
     await ctx.respond(f"{ctx.author.name} joined Crash with ${bet}", ephemeral=True)
+
+    balances.update_one({"_id": user_id}, {"$inc": {"balance": -bet}}, upsert=True)
 
 
 @bot.event
