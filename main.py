@@ -367,7 +367,7 @@ async def crash(ctx, time_delay : discord.Option(int, min_value = 1)):
     crash_msg = discord.Embed(title="Crash game starting")
     original_msg = await ctx.respond(embed=crash_msg)
     start_time = time.time()
-    
+    elapsed_time = round(time.time() - start_time)
     while elapsed_time < time_delay:
         elapsed_time = round(time.time() - start_time)
         crash_msg = discord.Embed(title="Crash game starting", description=f"Starting in {elapsed_time:.2f} seconds)")
