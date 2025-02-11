@@ -411,7 +411,7 @@ async def crash(ctx, time_delay: discord.Option(int, min_value=1)):
                 for user, bet in active_game_bets.items():
                     bets_embed.add_field(name=user, value=f"Bet: {bet}")
 
-        await betting_msg.edit(content=f"Multiplier: {current_multiplier:.2f} 🚀 | Target: {crash_multiplier}", embed=bets_embed, view=betting_view)
+        await betting_msg.edit(content=f"Multiplier: {current_multiplier:.2f} 🚀", embed=bets_embed, view=betting_view)
 
         current_multiplier += 0.05
         await asyncio.sleep(0.5)
