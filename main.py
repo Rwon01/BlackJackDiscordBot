@@ -421,7 +421,7 @@ async def crash(ctx, time_delay: discord.Option(int, min_value=1)):
 async def withdraw_callback(interaction : discord.Interaction):
     current_multiplier
     global active_game, active_game_bets
-    if interaction.user.name in active_game_bets.keys:
+    if interaction.user.name in active_game_bets:
         if has_crashed == False:
             interaction.respond(f"{interaction.user.name} withdrew")
             winning = active_game_bets[interaction.user.name] * current_multiplier
