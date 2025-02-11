@@ -449,13 +449,10 @@ async def joincrash(ctx, bet: discord.Option(int, min_value=1)):
     if can_join:
         async with bet_lock:
             active_game_bets[ctx.author.name] = bet
+            balances.update_one({"_id": user_id}, {"$inc": {"balance": -bet}}, upsert=True)
             await ctx.respond(f"{ctx.author.name} joined Crash with ${bet}", ephemeral=True)
     else:
-        await ctx.respond("Game already started")
-
-    
-
-    balances.update_one({"_id": user_id}, {"$inc": {"balance": -bet}}, upsert=True)
+        await ctx.respond("Game already started", ephemeral=True)
 
 
 @bot.event
