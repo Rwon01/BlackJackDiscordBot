@@ -423,12 +423,11 @@ async def withdraw_callback(interaction : discord.Interaction):
     global active_game, active_game_bets
     if interaction.user.name in active_game_bets:
         if has_crashed == False:
-            interaction.respond(f"{interaction.user.name} withdrew")
             winning = active_game_bets[interaction.user.name] * current_multiplier
+            await interaction.respond(f"{interaction.user.name} withdrew {winning}")
             balances.update_one({"_id": interaction.user.id}, {"$inc": {"balance": winning}}, upsert=True)
-
         else:
-            interaction.respond(f"I so sorry u too late! 🤓")
+            await interaction.respond(f"I so sorry u too late! 🤓")
 
 
 
