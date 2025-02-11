@@ -388,6 +388,14 @@ async def crash(ctx, time_delay: discord.Option(int, min_value=1)):
         elapsed_time = round(time.time() - start_time)
         remaining_time = time_delay - elapsed_time
         crash_msg.description = f"Starting in {remaining_time} seconds"
+        async with bet_lock:
+            bets_embed = discord.Embed(title="Bets")
+            bets_embed.clear_fields()
+            if active_game_bets:
+                for user, bet in active_game_bets.items():
+                    bets_embed.add_field(name=user, value=f"Bet: {bet}")
+
+
         await original_msg.edit(embed=crash_msg)
         await asyncio.sleep(0.5)
 
@@ -402,7 +410,7 @@ async def crash(ctx, time_delay: discord.Option(int, min_value=1)):
     betting_msg = await ctx.send(embed=bets_embed, view=betting_view)
 
     current_multiplier = 1.0
-    crash_multiplier = round(random.uniform(1.05, 5.0), 2)  # Adjusted fairness
+    crash_multiplier = round(1 / random.uniform(0.00001, 1), 2)  # Adjusted fairness
 
     while current_multiplier < crash_multiplier:
         async with bet_lock:
@@ -427,7 +435,7 @@ async def withdraw_callback(interaction : discord.Interaction):
     if interaction.user.name in active_game_bets:
         if not has_crashed:
             winning = round(active_game_bets[interaction.user.name] * current_multiplier)
-            await interaction.respond(f"{interaction.user.name} withdrew {winning}")
+            await interaction.respond(f"{interaction.user.name} withdrew ${winning} at {current_multiplier}x")
             del active_game_bets[interaction.user.name]
             balances.update_one({"_id": interaction.user.id}, {"$inc": {"balance": winning}}, upsert=True)
         else:
