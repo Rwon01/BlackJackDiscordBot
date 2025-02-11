@@ -355,15 +355,18 @@ async def stats(ctx):
 
 #CRASH
 has_crashed = False
+global active_game
+global active_game_bets
 active_game_bets = {}
 
 
 @bot.slash_command(guild_ids=server, name="crash", description="Start crash")
 async def crash(ctx, time_delay : discord.Option(int, min_value = 1)):
 
-    if  active_game_bets or has_crashed:
+    if active_game or has_crashed:
         return await ctx.respond("Active game running",  ephemeral=True) 
-
+    
+    active_game = ctx.id
     crash_msg = discord.Embed(title="Crash game starting")
     original_msg = await ctx.respond(embed=crash_msg)
     start_time = time.time()
@@ -379,19 +382,37 @@ async def crash(ctx, time_delay : discord.Option(int, min_value = 1)):
     betting_view = View()
     withdraw_button = Button(label="Withdraw", style=discord.ButtonStyle.green)
     betting_view.add_item(withdraw_button)
+    bets = discord.Embed(title="Bets")
     betting_msg = await ctx.respond(view=betting_view)
 
     current_multiplier = 1
     crash_multiplier = round( 0.96 / random.uniform(0.0001,1), 2)
     while current_multiplier < crash_multiplier:
-        await betting_msg.edit(f"{current_multiplier:.2f} DEMO: {crash_multiplier}", view = betting_view)
+
+        if active_game_bets:
+            for key, value in active_game_bets.items():
+                bets.add_field(name=key, value=value)
+
+        await betting_msg.edit(f"{current_multiplier:.2f} DEMO: {crash_multiplier}", view = betting_view, embed = bets)
         current_multiplier += 0.05
         await asyncio.sleep(0.50)
+
+        bets.clear_fields()
         
     
     await betting_msg.edit(f"BUSTED AT {crash_multiplier}")
 
+@bot.slash_command(guild_ids=server, name="joincrash", description="Join a crash")
+async def joincrash(ctx, bet : discord.Option(int, min_value = 1)):
+    user_id = ctx.author.id
+    user_data = balances.find_one({"_id": user_id}) or {"balance": 0}
+    bal = user_data["balance"]
+    
+    if bal < bet or (bet < 0):
+        await ctx.respond("Insufficient balance.")
+        return
 
+    active_game_bets[ctx.author.name] = bet
 
 @bot.event
 async def on_ready():
