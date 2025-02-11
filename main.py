@@ -368,7 +368,7 @@ bet_lock = asyncio.Lock()  # Prevents race conditions in bet handling
 async def crash(ctx, time_delay: discord.Option(int, min_value=1)):
     global active_game, has_crashed
 
-    if active_game or has_crashed:
+    if active_game:
         return await ctx.respond("Active game running", ephemeral=True)
 
     active_game = ctx.interaction.id
@@ -429,7 +429,7 @@ async def joincrash(ctx, bet: discord.Option(int, min_value=1)):
     async with bet_lock:
         active_game_bets[ctx.author.name] = bet
 
-    await ctx.respond(f"✅ {ctx.author.name} joined Crash with {bet}!")
+    await ctx.respond(f"{ctx.author.name} joined Crash with ${bet}", ephemeral=True)
 
 @bot.event
 async def on_ready():
