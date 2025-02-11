@@ -355,7 +355,7 @@ async def stats(ctx):
 
 #CRASH
 has_crashed = False
-active_game_bets = {}
+active_game_bets = {"Rwon" : "1"}
 
 
 @bot.slash_command(guild_ids=server, name="crash", description="Start crash")
