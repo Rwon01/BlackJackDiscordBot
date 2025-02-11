@@ -382,7 +382,7 @@ async def crash(ctx, time_delay : discord.Option(int, min_value = 1)):
     betting_msg = await ctx.respond(view=betting_view)
 
     current_multiplier = 1
-    crash_multiplier = round( 0.98 / random.uniform(0.000001,1), 2)
+    crash_multiplier = round( 0.96 / random.uniform(0.0001,1), 2)
     while current_multiplier < crash_multiplier:
         await betting_msg.edit(f"{current_multiplier:.2f} DEMO: {crash_multiplier}", view = betting_view)
         current_multiplier += 0.05
