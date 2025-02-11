@@ -386,7 +386,6 @@ async def crash(ctx, time_delay: discord.Option(int, min_value=1)):
         await original_msg.edit(embed=crash_msg)
         await asyncio.sleep(0.5)
 
-    await original_msg.delete()
     # Betting phase
     betting_view = View()
     withdraw_button = Button(label="Withdraw", style=discord.ButtonStyle.green)
