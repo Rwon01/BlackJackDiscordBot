@@ -370,7 +370,8 @@ async def crash(ctx, time_delay : discord.Option(int, min_value = 1)):
     elapsed_time = round(time.time() - start_time)
     while elapsed_time < time_delay:
         elapsed_time = round(time.time() - start_time)
-        crash_msg = discord.Embed(title="Crash game starting", description=f"Starting in {elapsed_time:.2f} seconds)")
+        remaining_time = time_delay - elapsed_time
+        crash_msg = discord.Embed(title="Crash game starting", description=f"Starting in {remaining_time:.2f} seconds)")
         await original_msg.edit(embed=crash_msg)
         await asyncio.sleep(0.5)
     
