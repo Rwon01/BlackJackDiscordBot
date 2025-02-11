@@ -380,8 +380,14 @@ async def crash(ctx, time_delay : discord.Option(int, min_value = 1)):
     withdraw_button = Button(label="Withdraw", style=discord.ButtonStyle.green)
     betting_view.add_item(withdraw_button)
     betting_msg = await ctx.respond(view=betting_view)
-    
-    
+
+    random_int = random.randint(0,9)
+    while random_int != 0:
+        random_int = random.randint(0,9)
+        await betting_msg.edit(f"{random_int}", view = betting_view)
+        await asyncio.sleep(1)
+
+
 
 @bot.event
 async def on_ready():
