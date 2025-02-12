@@ -425,7 +425,10 @@ async def crash(ctx, time_delay: discord.Option(int, min_value=5, max_value = 30
 
         await betting_msg.edit(content=f"Multiplier: {current_multiplier:.2f} 🚀", embed=bets_embed, view=betting_view)
 
-        current_multiplier += 0.1
+        if active_game_bets:
+            current_multiplier += 0.1
+        else:
+            current_multiplier += 1.0
         await asyncio.sleep(0.5)
 
     await betting_msg.edit(content=f"💥 BUSTED at {crash_multiplier}x", view=None)
@@ -460,6 +463,8 @@ async def joincrash(ctx, bet: discord.Option(int, min_value=1, max_value = 1000)
 
     if can_join:
         async with bet_lock:
+            if ctx.author.name in active_game_bets:
+                return await ctx.respond("You already placed a bet!", ephemeral=True)
             active_game_bets[ctx.author.name] = bet
             balances.update_one({"_id": user_id}, {"$inc": {"balance": -bet}}, upsert=True)
             await ctx.respond(f"{ctx.author.name} joined Crash with ${bet}", ephemeral=True)
