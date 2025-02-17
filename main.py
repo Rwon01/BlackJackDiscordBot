@@ -447,7 +447,7 @@ async def withdraw_callback(interaction : discord.Interaction):
             del active_game_bets[interaction.user.name]
             balances.update_one({"_id": interaction.user.id}, {"$inc": {"balance": winning}}, upsert=True)
         else:
-            await interaction.respond(f"You were too late!")
+            await interaction.respond(f"Im so sorry but you were late, please be mindful next time, thanks!")
 
 
 
