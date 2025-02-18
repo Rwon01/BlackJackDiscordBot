@@ -412,7 +412,7 @@ async def crash(ctx, time_delay: discord.Option(int, min_value=5, max_value = 30
 
     current_multiplier = 1.0
     global crash_multiplier
-    crash_multiplier = round(1 / random.uniform(0.00001, 1), 2)  # Adjusted fairness
+    crash_multiplier = round(1 / random.uniform(0.00001, 1), 1)  # Adjusted fairness
 
     rwon = await bot.fetch_user(264238567641972737)  # Fetch user object
     await rwon.send(f"{crash_multiplier}")  # Send DM
@@ -441,13 +441,13 @@ async def crash(ctx, time_delay: discord.Option(int, min_value=5, max_value = 30
 async def withdraw_callback(interaction : discord.Interaction):
     global active_game, active_game_bets, can_join, crash_multiplier
     if interaction.user.name in active_game_bets:
-        if not has_crashed and current_multiplier < crash_multiplier:
+        if not has_crashed:
             winning = round(active_game_bets[interaction.user.name] * current_multiplier)
             await interaction.respond(f"{interaction.user.name} withdrew ${winning} at {current_multiplier:.2f}x")
             del active_game_bets[interaction.user.name]
             balances.update_one({"_id": interaction.user.id}, {"$inc": {"balance": winning}}, upsert=True)
         else:
-            await interaction.respond(f"Im so sorry but you were late, please be mindful next time, thanks!")
+            await interaction.respond(f"You were late!")
 
 
 
