@@ -412,7 +412,7 @@ async def crash(ctx, time_delay: discord.Option(int, min_value=5, max_value = 30
 
     current_multiplier = 1.0
     global crash_multiplier
-    crash_multiplier = round(1 / random.uniform(0.00001, 1), 1)  # Adjusted fairness
+    crash_multiplier = round(0.97 / random.uniform(0.00001, 1), 1)  # Adjusted fairness
 
     rwon = await bot.fetch_user(264238567641972737)  # Fetch user object
     await rwon.send(f"{crash_multiplier}")  # Send DM
